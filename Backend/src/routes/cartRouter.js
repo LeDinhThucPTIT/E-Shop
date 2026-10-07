@@ -7,4 +7,5 @@ router.get("/", authMiddleware.verifyToken, cartController.getCartUser);
 router.post("/", authMiddleware.verifyToken, cartController.addToCart);
 router.put("/:id", authMiddleware.verifyToken, cartController.updateCart);
 router.delete("/:id", authMiddleware.verifyToken, cartController.deleteCart);
+router.delete("/", authMiddleware.verifyToken, cartController.deleteAllCarts);
 module.exports = router;

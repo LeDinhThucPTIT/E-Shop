@@ -53,9 +53,13 @@ const deleteCart = async (userId, cartId) => {
   return await cartRepository.deleteCart(userId, cartId);
 };
 
+const deleteAllCarts = async (userId) => {
+  return await cartRepository.deleteAllCarts(userId);
+};
 module.exports = {
   getCartUser,
   addToCart,
   updateCart,
   deleteCart,
+  deleteAllCarts,
 };

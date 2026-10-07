@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Product = require("../models/Products");
 
 const getAllProducts = async (filter, skip, limit, sort) => {
@@ -8,11 +9,18 @@ const getAllProducts = async (filter, skip, limit, sort) => {
     .populate("category")
     .populate("brand");
 };
-
 const getProductById = async (productId) => {
-  return await Product.findById(productId)
-    .populate("category")
-    .populate("brand");
+  // 1. Tạo câu truy vấn (Chưa lấy dữ liệu vội)
+  const query = mongoose.Types.ObjectId.isValid(productId)
+    ? Product.findById(productId)
+    : Product.findOne({ slug: productId });
+
+  // 2. Gắn populate và chạy lấy dữ liệu cùng lúc
+  const product = await query.populate("category").populate("brand");
+
+  if (!product) return null;
+
+  return product;
 };
 
 const createProduct = async (productData) => {

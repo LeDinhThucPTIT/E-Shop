@@ -59,11 +59,6 @@ export interface Order {
   timeline: OrderTimelineEvent[];
 }
 
-export interface CartItem {
-  productId: string;
-  quantity: number;
-}
-
 export interface AIMessage {
   id: string;
   role: "user" | "assistant";
@@ -79,7 +74,7 @@ export interface User {
   phone?: string;
   avatar?: string;
 }
-
+//=======================================================================================================================================
 // Đã sửa
 export interface Brand {
   _id: string;
@@ -155,6 +150,23 @@ export interface Product {
   isActive?: boolean;
 
   // Do bạn có dùng { timestamps: true } trong Mongoose
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Interface cho từng item trong giỏ hàng
+export interface CartItem {
+  _id?: string; // Mongoose tự sinh ID cho sub-document trong mảng items
+  product: string; // ObjectId dưới dạng string (hoặc IProduct nếu đã populate)
+  sku: string;
+  quantity: number;
+}
+
+// Interface đầy đủ cho Giỏ hàng
+export interface Cart {
+  _id: string;
+  user: string; // ObjectId dưới dạng string (hoặc IUser nếu đã populate)
+  items: CartItem[];
   createdAt?: string;
   updatedAt?: string;
 }

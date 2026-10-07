@@ -16,9 +16,14 @@ const deleteCart = async (userId, cartId) => {
   return await Cart.findOneAndDelete({ _id: cartId, user: userId });
 };
 
+const deleteAllCarts = async (userId) => {
+  return await Cart.deleteMany({ user: userId });
+};
+
 module.exports = {
   getCartUser,
   createCart,
   updateCart,
   deleteCart,
+  deleteAllCarts,
 };

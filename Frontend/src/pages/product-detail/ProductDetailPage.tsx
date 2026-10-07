@@ -11,10 +11,10 @@ import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import ProductCard from "../../components/product/ProductCard";
 import EmptyState from "../../components/ui/EmptyState";
-import { getProductBySlug, getRelatedProducts, products } from "../../data/products";
 import { getReviewsForProduct } from "../../data/reviews";
-import { categories } from "../../data/categories";
 import { formatVND, formatDate } from "../../utils/format";
+import productApi from "../../services/productApi";
+import type { Product } from "../../types";
 import { useCartStore } from "../../stores/useCartStore";
 import { useWishlistStore } from "../../stores/useWishlistStore";
 import { useCompareStore, MAX_COMPARE } from "../../stores/useCompareStore";
@@ -25,7 +25,6 @@ const RECENTLY_VIEWED_KEY = "neuralstore-recently-viewed";
 export default function ProductDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const product = slug ? getProductBySlug(slug) : undefined;
 
   const { addItem } = useCartStore();
   const { has: inWishlist, toggle: toggleWishlist } = useWishlistStore();
@@ -35,32 +34,135 @@ export default function ProductDetailPage() {
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<"description" | "specs" | "reviews" | "qa">("description");
-  const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [productError, setProductError] = useState("");
+  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([]);
+  const [recentProducts, setRecentProducts] = useState<Product[]>([]);
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
 
   useEffect(() => {
-    if (!product) return;
+    let active = true;
+
+    if (!slug) {
+      setProduct(null);
+      setProductError("");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setProductError("");
+    void productApi
+      .getById(slug)
+      .then((result) => {
+        if (active) setProduct(result);
+      })
+      .catch((error: unknown) => {
+        console.error("Error fetching product details:", error);
+        if (active) {
+          setProduct(null);
+          setProductError("Không thể tải thông tin sản phẩm. Vui lòng thử lại.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  const productId = product?.id || product?._id;
+  const productCategory = product?.category;
+  const categoryId =
+    typeof productCategory === "string" ? productCategory : productCategory?._id;
+
+  useEffect(() => {
+    if (!productId) return;
+
     setActiveImage(0);
     setQuantity(1);
     setTab("description");
     window.scrollTo(0, 0);
 
     try {
-      const stored: string[] = JSON.parse(localStorage.getItem(RECENTLY_VIEWED_KEY) || "[]");
-      const next = [product.id, ...stored.filter((id) => id !== product.id)].slice(0, 8);
+      const stored: unknown = JSON.parse(localStorage.getItem(RECENTLY_VIEWED_KEY) || "[]");
+      const storedIds = Array.isArray(stored)
+        ? stored.filter((id): id is string => typeof id === "string")
+        : [];
+      const next = [productId, ...storedIds.filter((id) => id !== productId)].slice(0, 8);
       localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(next));
-      setRecentlyViewed(next.filter((id) => id !== product.id));
+      setRecentlyViewedIds(next.filter((id) => id !== productId));
     } catch {
-      setRecentlyViewed([]);
+      setRecentlyViewedIds([]);
     }
-  }, [product]);
+  }, [productId]);
+
+  useEffect(() => {
+    let active = true;
+    setRecommendations([]);
+
+    if (categoryId) {
+      void productApi
+        .getAll({ category: categoryId, limit: 12, sortBy: "rating", order: "desc" })
+        .then((result) => {
+          if (active) {
+            setRecommendations(
+              result.data.filter((item) => (item.id || item._id) !== productId),
+            );
+          }
+        })
+        .catch((error: unknown) => {
+          console.error("Error fetching related products:", error);
+        });
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [categoryId, productId]);
+
+  useEffect(() => {
+    let active = true;
+    setRecentProducts([]);
+
+    if (recentlyViewedIds.length > 0) {
+      void Promise.allSettled(recentlyViewedIds.slice(0, 4).map((id) => productApi.getById(id)))
+        .then((results) => {
+          if (!active) return;
+          results.forEach((result) => {
+            if (result.status === "rejected") {
+              console.error("Error fetching a recently viewed product:", result.reason);
+            }
+          });
+          setRecentProducts(
+            results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])),
+          );
+        });
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [recentlyViewedIds]);
+
+  if (loading) {
+    return (
+      <Container className="py-16">
+        <p className="text-center text-sm text-slate-500">Đang tải thông tin sản phẩm...</p>
+      </Container>
+    );
+  }
 
   if (!product) {
     return (
       <Container className="py-16">
         <EmptyState
           icon={<Star size={26} />}
-          title="Không tìm thấy sản phẩm"
-          description="Sản phẩm này có thể đã ngừng kinh doanh hoặc đường dẫn không chính xác."
+          title={productError ? "Không thể tải sản phẩm" : "Không tìm thấy sản phẩm"}
+          description={productError || "Sản phẩm này có thể đã ngừng kinh doanh hoặc đường dẫn không chính xác."}
           actionLabel="Về trang sản phẩm"
           onAction={() => navigate("/products")}
         />
@@ -68,17 +170,36 @@ export default function ProductDetailPage() {
     );
   }
 
-  const categoryLabel = categories.find((c) => c.slug === product.category)?.name || product.category;
-  const related = getRelatedProducts(product);
-  const reviews = getReviewsForProduct(product.id);
-  const recentProducts = recentlyViewed
-    .map((id) => products.find((p) => p.id === id))
-    .filter(Boolean)
-    .slice(0, 4) as typeof products;
-  const aiPicks = products
-    .filter((p) => p.category === product.category && p.id !== product.id)
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 3);
+  const brandName =
+    typeof product.brand === "string" ? product.brand : product.brand?.name || "";
+  const categoryLabel =
+    typeof product.category === "string"
+      ? product.category
+      : product.category?.name || "Sản phẩm";
+  const categorySlug =
+    typeof product.category === "string"
+      ? product.category
+      : product.category?.slug || product.category?._id || "";
+  const productImages = product.images?.length
+    ? product.images
+    : product.thumbnail
+      ? [product.thumbnail]
+      : [];
+  const price = product.discountPrice ?? product.price ?? 0;
+  const originalPrice =
+    product.originalPrice ?? (product.discountPrice && product.discountPrice < (product.price ?? 0)
+      ? product.price
+      : undefined);
+  const discount =
+    product.discount ??
+    (originalPrice && price < originalPrice
+      ? Math.round(((originalPrice - price) / originalPrice) * 100)
+      : 0);
+  const stock = product.stock ?? 0;
+  const warranty = product.warranty ?? 0;
+  const reviews = getReviewsForProduct(productId || "");
+  const related = recommendations.slice(0, 4);
+  const aiPicks = recommendations.slice(0, 3);
 
   const ratingDistribution = [5, 4, 3, 2, 1].map((star) => ({
     star,
@@ -86,19 +207,20 @@ export default function ProductDetailPage() {
   }));
 
   const handleAddToCart = () => {
-    if (product.stock === 0) return;
-    addItem(product.id, quantity);
+    if (stock === 0 || !productId) return;
+    addItem(productId, quantity);
     showToast("Đã thêm vào giỏ hàng", "success");
   };
 
   const handleBuyNow = () => {
-    if (product.stock === 0) return;
-    addItem(product.id, quantity);
+    if (stock === 0 || !productId) return;
+    addItem(productId, quantity);
     navigate("/checkout");
   };
 
   const handleCompare = () => {
-    const ok = addCompare(product.id);
+    if (!productId) return;
+    const ok = addCompare(productId);
     if (!ok) showToast(`Chỉ có thể so sánh tối đa ${MAX_COMPARE} sản phẩm`, "warning");
     else navigate("/compare");
   };
@@ -107,7 +229,7 @@ export default function ProductDetailPage() {
     <Container className="py-8">
       <Breadcrumb
         items={[
-          { label: categoryLabel, to: `/products?category=${product.category}` },
+          { label: categoryLabel, to: `/products?category=${categorySlug}` },
           { label: product.name },
         ]}
       />
@@ -116,15 +238,17 @@ export default function ProductDetailPage() {
         {/* Gallery */}
         <div>
           <div className="aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-            <img
-              src={product.images[activeImage]}
-              alt={product.name}
-              className="h-full w-full object-cover"
-            />
+            {productImages[activeImage] ? (
+              <img
+                src={productImages[activeImage]}
+                alt={product.name}
+                className="h-full w-full object-cover"
+              />
+            ) : null}
           </div>
-          {product.images.length > 1 && (
+          {productImages.length > 1 && (
             <div className="mt-3 flex gap-3">
-              {product.images.map((img, i) => (
+              {productImages.map((img, i) => (
                 <button
                   key={img}
                   onClick={() => setActiveImage(i)}
@@ -143,35 +267,35 @@ export default function ProductDetailPage() {
         {/* Info */}
         <div>
           <span className="text-xs font-semibold uppercase tracking-wide text-violet-600">
-            {product.brand}
+            {brandName}
           </span>
           <h1 className="mt-1 text-2xl font-bold leading-tight text-ink-900 sm:text-3xl">
             {product.name}
           </h1>
           <div className="mt-2 flex items-center gap-3">
-            <Rating value={product.rating} count={product.reviewCount} />
+            <Rating value={product.rating ?? 0} count={product.reviewCount} />
             {product.trending && <Badge variant="accent">Xu hướng</Badge>}
           </div>
 
           <div className="mt-5 flex items-baseline gap-3 border-b border-slate-100 pb-5">
-            <span className="text-3xl font-extrabold gradient-text">{formatVND(product.price)}</span>
-            {product.originalPrice && (
+            <span className="text-3xl font-extrabold gradient-text">{formatVND(price)}</span>
+            {originalPrice && (
               <>
                 <span className="text-base text-slate-400 line-through">
-                  {formatVND(product.originalPrice)}
+                  {formatVND(originalPrice)}
                 </span>
-                <Badge variant="error">-{product.discount}%</Badge>
+                <Badge variant="error">-{discount}%</Badge>
               </>
             )}
           </div>
 
-          <p className="mt-5 text-sm leading-relaxed text-slate-600">{product.shortDescription}</p>
+          <p className="mt-5 text-sm leading-relaxed text-slate-600">{product.description}</p>
 
           <div className="mt-5">
-            {product.stock === 0 ? (
+            {stock === 0 ? (
               <Badge variant="default">Hết hàng</Badge>
-            ) : product.stock <= 5 ? (
-              <Badge variant="warning">Chỉ còn {product.stock} sản phẩm</Badge>
+            ) : stock <= 5 ? (
+              <Badge variant="warning">Chỉ còn {stock} sản phẩm</Badge>
             ) : (
               <Badge variant="success">Còn hàng</Badge>
             )}
@@ -189,7 +313,7 @@ export default function ProductDetailPage() {
               </button>
               <span className="w-10 text-center text-sm font-semibold">{quantity}</span>
               <button
-                onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
+                onClick={() => setQuantity((q) => Math.min(stock, q + 1))}
                 aria-label="Tăng số lượng"
                 className="flex h-10 w-10 items-center justify-center text-slate-500 hover:text-ink-900"
               >
@@ -203,7 +327,7 @@ export default function ProductDetailPage() {
               size="lg"
               variant="outline"
               icon={<ShoppingCart size={18} />}
-              disabled={product.stock === 0}
+              disabled={stock === 0}
               onClick={handleAddToCart}
               className="flex-1 min-w-[160px]"
             >
@@ -211,7 +335,7 @@ export default function ProductDetailPage() {
             </Button>
             <Button
               size="lg"
-              disabled={product.stock === 0}
+              disabled={stock === 0}
               onClick={handleBuyNow}
               className="flex-1 min-w-[160px]"
             >
@@ -221,24 +345,25 @@ export default function ProductDetailPage() {
           <div className="mt-3 flex gap-3">
             <button
               onClick={() => {
-                toggleWishlist(product.id);
+                if (!productId) return;
+                toggleWishlist(productId);
                 showToast(
-                  inWishlist(product.id) ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích",
+                  inWishlist(productId) ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích",
                   "success"
                 );
               }}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-slate-300 py-2.5 text-sm font-medium text-slate-600 hover:border-error-300 hover:text-error-500"
             >
-              <Heart size={15} className={inWishlist(product.id) ? "fill-error-500 text-error-500" : ""} />
+              <Heart size={15} className={productId && inWishlist(productId) ? "fill-error-500 text-error-500" : ""} />
               Yêu thích
             </button>
             <button
               onClick={handleCompare}
-              disabled={inCompare(product.id)}
+              disabled={Boolean(productId && inCompare(productId))}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-slate-300 py-2.5 text-sm font-medium text-slate-600 hover:border-accent-300 hover:text-accent-600 disabled:opacity-50"
             >
               <Scale size={15} />
-              {inCompare(product.id) ? "Đã thêm so sánh" : "So sánh"}
+              {productId && inCompare(productId) ? "Đã thêm so sánh" : "So sánh"}
             </button>
           </div>
 
@@ -247,7 +372,7 @@ export default function ProductDetailPage() {
               <Truck size={16} className="text-violet-600" /> Giao hàng nhanh 24-48h nội thành
             </div>
             <div className="flex items-center gap-2.5 text-sm text-slate-600">
-              <ShieldCheck size={16} className="text-violet-600" /> Bảo hành chính hãng {product.warrantyMonths} tháng
+              <ShieldCheck size={16} className="text-violet-600" /> Bảo hành chính hãng {warranty} tháng
             </div>
             <div className="flex items-center gap-2.5 text-sm text-slate-600">
               <RotateCcw size={16} className="text-violet-600" /> Đổi trả miễn phí trong 15 ngày
@@ -284,9 +409,9 @@ export default function ProductDetailPage() {
 
           {tab === "specs" && (
             <div className="max-w-2xl divide-y divide-slate-100 rounded-md border border-slate-100">
-              {product.specifications.map((spec) => (
-                <div key={spec.label} className="flex justify-between gap-4 px-4 py-3 text-sm">
-                  <span className="text-slate-500">{spec.label}</span>
+              {(product.specifications || []).map((spec) => (
+                <div key={spec._id || spec.name} className="flex justify-between gap-4 px-4 py-3 text-sm">
+                  <span className="text-slate-500">{spec.name}</span>
                   <span className="text-right font-medium text-ink-900">{spec.value}</span>
                 </div>
               ))}
@@ -297,9 +422,9 @@ export default function ProductDetailPage() {
             <div className="grid grid-cols-1 gap-10 lg:grid-cols-[280px_1fr]">
               <div>
                 <div className="flex items-center gap-3">
-                  <span className="text-4xl font-extrabold text-ink-900">{product.rating.toFixed(1)}</span>
+                  <span className="text-4xl font-extrabold text-ink-900">{(product.rating ?? 0).toFixed(1)}</span>
                   <div>
-                    <Rating value={product.rating} showValue={false} />
+                    <Rating value={product.rating ?? 0} showValue={false} />
                     <p className="text-xs text-slate-500">{product.reviewCount} đánh giá</p>
                   </div>
                 </div>

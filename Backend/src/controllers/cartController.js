@@ -42,7 +42,10 @@ const updateCart = async (req, res) => {
 
 const deleteCart = async (req, res) => {
   try {
-    const deletedCart = await cartService.deleteCart(req.user.id, req.params.id);
+    const deletedCart = await cartService.deleteCart(
+      req.user.id,
+      req.params.id,
+    );
     if (!deletedCart) {
       return res
         .status(404)
@@ -54,9 +57,24 @@ const deleteCart = async (req, res) => {
   }
 };
 
+const deleteAllCarts = async (req, res) => {
+  try {
+    const deletedCarts = await cartService.deleteAllCarts(req.user.id);
+    if (!deletedCarts) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy giỏ hàng." });
+    }
+    return res.status(200).json({ success: true, data: deletedCarts });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getCartUser,
   addToCart,
   updateCart,
   deleteCart,
+  deleteAllCarts,
 };

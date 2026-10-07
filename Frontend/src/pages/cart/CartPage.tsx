@@ -10,7 +10,7 @@ import { useUIStore } from "../../stores/useUIStore";
 
 export default function CartPage() {
   const navigate = useNavigate();
-  const { items, increment, decrement, removeItem, clearCart, subtotal } = useCartStore();
+  const items = useCartStore((state) => state.items);
   const { showToast } = useUIStore();
 
   if (items.length === 0) {
@@ -26,17 +26,13 @@ export default function CartPage() {
       </Container>
     );
   }
-
-  const sub = subtotal();
-  const shipping = sub > 20_000_000 ? 0 : 50_000;
-  const discount = 0;
-  const tax = Math.round(sub * 0.08);
-  const total = sub - discount + shipping + tax;
-
+  const clearCart = useCartStore((state) => state.clearCart);
   return (
     <Container className="py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink-900">Giỏ hàng ({items.length})</h1>
+        <h1 className="text-2xl font-bold text-ink-900">
+          Giỏ hàng ({items.length})
+        </h1>
         <button
           onClick={() => {
             clearCart();
@@ -51,10 +47,10 @@ export default function CartPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
         <div className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white shadow-sm">
           {items.map((item) => {
-            const product = getProductById(item.productId);
+            const product = getProductById(item.product._id);
             if (!product) return null;
             return (
-              <div key={item.productId} className="flex gap-4 p-4">
+              <div key={item.product._id} className="flex gap-4 p-4">
                 <Link to={`/products/${product.slug}`} className="shrink-0">
                   <img
                     src={product.images[0]}
@@ -71,7 +67,9 @@ export default function CartPage() {
                       >
                         {product.name}
                       </Link>
-                      <p className="mt-1 text-xs text-slate-400">{product.brand}</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {product.brand || ""}
+                      </p>
                     </div>
                     <button
                       onClick={() => removeItem(item.productId)}
@@ -90,7 +88,9 @@ export default function CartPage() {
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
+                      <span className="w-8 text-center text-sm font-semibold">
+                        {item.quantity}
+                      </span>
                       <button
                         onClick={() => increment(item.productId)}
                         aria-label="Tăng số lượng"
@@ -113,43 +113,48 @@ export default function CartPage() {
         <div className="h-fit overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
           <div className="h-1 bg-gradient-to-r from-accent-500 via-violet-500 to-cyan-500" />
           <div className="p-5">
-          <h2 className="text-base font-semibold text-ink-900">Tóm tắt đơn hàng</h2>
-          <div className="mt-4 space-y-2.5 text-sm">
-            <div className="flex justify-between text-slate-600">
-              <span>Tạm tính</span>
-              <span>{formatVND(sub)}</span>
+            <h2 className="text-base font-semibold text-ink-900">
+              Tóm tắt đơn hàng
+            </h2>
+            <div className="mt-4 space-y-2.5 text-sm">
+              <div className="flex justify-between text-slate-600">
+                <span>Tạm tính</span>
+                <span>{formatVND(sub)}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Giảm giá</span>
+                <span>-{formatVND(discount)}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Phí vận chuyển</span>
+                <span>{shipping === 0 ? "Miễn phí" : formatVND(shipping)}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Thuế ước tính (8%)</span>
+                <span>{formatVND(tax)}</span>
+              </div>
             </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Giảm giá</span>
-              <span>-{formatVND(discount)}</span>
+            <div className="mt-4 flex justify-between border-t border-slate-100 pt-4 text-base font-bold text-ink-900">
+              <span>Tổng cộng</span>
+              <span className="gradient-text">{formatVND(total)}</span>
             </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Phí vận chuyển</span>
-              <span>{shipping === 0 ? "Miễn phí" : formatVND(shipping)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Thuế ước tính (8%)</span>
-              <span>{formatVND(tax)}</span>
-            </div>
-          </div>
-          <div className="mt-4 flex justify-between border-t border-slate-100 pt-4 text-base font-bold text-ink-900">
-            <span>Tổng cộng</span>
-            <span className="gradient-text">{formatVND(total)}</span>
-          </div>
-          <Button
-            fullWidth
-            size="lg"
-            variant="gradient"
-            className="mt-5"
-            icon={<ArrowRight size={17} />}
-            style={{ flexDirection: "row-reverse" }}
-            onClick={() => navigate("/checkout")}
-          >
-            Tiến hành thanh toán
-          </Button>
-          <Link to="/products" className="mt-3 block text-center text-sm font-medium text-violet-600 hover:underline">
-            Tiếp tục mua sắm
-          </Link>
+            <Button
+              fullWidth
+              size="lg"
+              variant="gradient"
+              className="mt-5"
+              icon={<ArrowRight size={17} />}
+              style={{ flexDirection: "row-reverse" }}
+              onClick={() => navigate("/checkout")}
+            >
+              Tiến hành thanh toán
+            </Button>
+            <Link
+              to="/products"
+              className="mt-3 block text-center text-sm font-medium text-violet-600 hover:underline"
+            >
+              Tiếp tục mua sắm
+            </Link>
           </div>
         </div>
       </div>
