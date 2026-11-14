@@ -287,6 +287,7 @@ export default function ProductDetailPage() {
     <Container className="py-8">
       <Breadcrumb
         items={[
+          { label: "Danh mục", to: "/categories" },
           { label: categoryLabel, to: `/products?category=${categorySlug}` },
           { label: product.name },
         ]}

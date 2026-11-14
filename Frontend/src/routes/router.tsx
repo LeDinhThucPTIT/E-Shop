@@ -4,6 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 import AdminLayout from "../layouts/AdminLayout";
 
 import HomePage from "../pages/home/HomePage";
+import CategoriesPage from "../pages/categories/CategoriesPage";
 import ProductsPage from "../pages/products/ProductsPage";
 import ProductDetailPage from "../pages/product-detail/ProductDetailPage";
 import CartPage from "../pages/cart/CartPage";
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "products", element: <ProductsPage /> },
+      { path: "categories", element: <CategoriesPage /> },
       { path: "products/:slug", element: <ProductDetailPage /> },
       { path: "wishlist", element: <WishlistPage /> },
       { path: "compare", element: <ComparePage /> },

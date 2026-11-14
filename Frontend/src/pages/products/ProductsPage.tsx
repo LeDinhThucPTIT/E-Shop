@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, X, PackageSearch } from "lucide-react";
+import Breadcrumb from "../../components/ui/Breadcrumb";
 import Container from "../../components/ui/Container";
 import ProductCard from "../../components/product/ProductCard";
 import Select from "../../components/ui/Select";
@@ -27,6 +28,7 @@ export default function ProductsPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [error, setError] = useState("");
   const [taxonomyError, setTaxonomyError] = useState("");
+  const [taxonomyAttempt, setTaxonomyAttempt] = useState(0);
   const [taxonomyLoaded, setTaxonomyLoaded] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
 
@@ -45,6 +47,7 @@ export default function ProductsPage() {
     let active = true;
 
     const fetchFilters = async () => {
+      setTaxonomyLoaded(false);
       try {
         const [categoryList, brandList] = await Promise.all([
           categoryApi.getAll({ isActive: true }),
@@ -67,7 +70,7 @@ export default function ProductsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [taxonomyAttempt]);
 
   useEffect(() => {
     if (!taxonomyLoaded) return;
@@ -167,6 +170,16 @@ export default function ProductsPage() {
 
   const clearFilters = () => setSearchParams({});
   const hasFilters = category || selectedBrands.length || minRating || maxPrice < 70_000_000 || availability || search;
+
+  const activeCategory = categories.find((c) => c.slug === category);
+  const activeFilters = [
+    ...(search ? [{ key: "search", label: `Tìm: ${search}` }] : []),
+    ...(category ? [{ key: "category", label: activeCategory?.name || category }] : []),
+    ...selectedBrands.map((slug) => ({ key: "brand", value: slug, label: brands.find((b) => b.slug === slug)?.name || slug })),
+    ...(maxPrice < 70_000_000 ? [{ key: "maxPrice", label: `Đến ${formatVND(maxPrice)}` }] : []),
+    ...(minRating ? [{ key: "rating", label: `${minRating}+ ★` }] : []),
+    ...(availability ? [{ key: "availability", label: availability === "in-stock" ? "Còn hàng" : "Hết hàng" }] : []),
+  ];
 
   const FilterPanel = () => (
     <div className="flex flex-col gap-6">
@@ -273,13 +286,16 @@ export default function ProductsPage() {
 
   return (
     <Container className="py-8">
+      <div className="mb-6">
+        <Breadcrumb items={category ? [{ label: "Danh mục", to: "/categories" }, { label: activeCategory?.name || category }] : [{ label: "Sản phẩm" }]} />
+      </div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">
             {search ? `Kết quả cho "${search}"` : category ? categories.find((c) => c.slug === category)?.name || "Sản phẩm" : "Tất cả sản phẩm"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">{totalItems} sản phẩm</p>
-          {taxonomyError && <p className="mt-1 text-sm text-rose-600">{taxonomyError}</p>}
+          {taxonomyError && <p role="alert" className="mt-1 text-sm text-rose-600">{taxonomyError} <button className="underline" onClick={() => setTaxonomyAttempt((n) => n + 1)}>Thử lại</button></p>}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -299,6 +315,16 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {activeFilters.length > 0 && (
+        <div aria-label="Bộ lọc đang áp dụng" className="mb-5 flex flex-wrap items-center gap-2">
+          {activeFilters.map((filter) => (
+            <button key={`${filter.key}-${"value" in filter ? filter.value : ""}`} onClick={() => "value" in filter ? toggleBrand(filter.value as string) : updateParam(filter.key, null)} className="flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-sm text-violet-700" aria-label={`Bỏ bộ lọc ${filter.label}`}>
+              {filter.label}<X size={13} />
+            </button>
+          ))}
+          <button className="text-sm text-slate-500 underline" onClick={clearFilters}>Xóa tất cả</button>
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[260px_1fr]">
         <aside className="hidden h-fit rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm sticky top-24 lg:block">
           <FilterPanel />

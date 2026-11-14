@@ -153,7 +153,7 @@ export default function HomePage() {
               </p>
             </div>
             <Link
-              to="/products"
+              to="/categories"
               className="hidden text-sm font-semibold text-accent-600 hover:underline sm:block"
             >
               Xem tất cả

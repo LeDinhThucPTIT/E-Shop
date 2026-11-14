@@ -6,7 +6,7 @@ import { useAuthStore } from "../../stores/useAuthStore";
 const links = [
   { label: "Trang chủ", to: "/", icon: Home },
   { label: "Sản phẩm", to: "/products", icon: Package },
-  { label: "Danh mục", to: "/products", icon: Grid3x3 },
+  { label: "Danh mục", to: "/categories", icon: Grid3x3 },
   { label: "Trợ lý AI", to: "/ai-assistant", icon: Sparkles },
   { label: "So sánh", to: "/compare", icon: Scale },
   { label: "Yêu thích", to: "/wishlist", icon: Heart },

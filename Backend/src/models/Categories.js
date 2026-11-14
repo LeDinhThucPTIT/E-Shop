@@ -5,6 +5,7 @@ const schema = new mongoose.Schema(
     slug: { type: String, required: true, unique: true, trim: true },
     description: { type: String, default: "" },
     image: { type: String, default: "" },
+    sortOrder: { type: Number, default: 0, min: 0 },
     icon: { type: String, default: "Laptop" },
     isActive: { type: Boolean, default: true },
   },

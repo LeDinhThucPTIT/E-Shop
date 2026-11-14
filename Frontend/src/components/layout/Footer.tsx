@@ -9,7 +9,7 @@ const columns = [
     title: "Mua sắm",
     links: [
       { label: "Sản phẩm", to: "/products" },
-      { label: "Danh mục", to: "/products" },
+      { label: "Danh mục", to: "/categories" },
       { label: "Ưu đãi", to: "/products?sort=discount" },
     ],
   },

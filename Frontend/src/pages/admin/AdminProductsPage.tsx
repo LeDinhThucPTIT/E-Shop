@@ -19,6 +19,9 @@ export default function AdminProductsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
   const [editing, setEditing] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const { categories } = useCatalogStore();
@@ -49,8 +52,11 @@ export default function AdminProductsPage() {
   }, []);
   const filtered = products.filter(
     (p) =>
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.brand.toLowerCase().includes(query.toLowerCase()),
+      (p.name.toLowerCase().includes(query.toLowerCase()) ||
+      p.brand.toLowerCase().includes(query.toLowerCase())) &&
+      (!categoryFilter || p.categoryId === categoryFilter) &&
+      (!statusFilter || (statusFilter === "active" ? p.isActive : !p.isActive)) &&
+      (!stockFilter || (stockFilter === "in-stock" ? p.stock > 0 : p.stock === 0)),
   );
 
   const handleSave = async (updated: Product) => {
@@ -142,6 +148,20 @@ export default function AdminProductsPage() {
         />
       </div>
 
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <select aria-label="Lọc danh mục" className="rounded border p-2 text-sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+          <option value="">Tất cả danh mục</option>
+          {Array.from(new Map(products.filter((p) => p.categoryId).map((p) => [p.categoryId, p.categoryName || p.category])).entries()).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        </select>
+        <select aria-label="Lọc trạng thái kinh doanh" className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="">Tất cả trạng thái</option><option value="active">Đang kinh doanh</option><option value="inactive">Ngừng kinh doanh</option>
+        </select>
+        <select aria-label="Lọc tồn kho" className="rounded border p-2 text-sm" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}>
+          <option value="">Tất cả tồn kho</option><option value="in-stock">Còn hàng</option><option value="out-of-stock">Hết hàng</option>
+        </select>
+        <span className="text-sm text-slate-500">{filtered.length} kết quả</span>
+        {(query || categoryFilter || statusFilter || stockFilter) && <button className="text-sm text-violet-600 underline" onClick={() => { setQuery(""); setCategoryFilter(""); setStatusFilter(""); setStockFilter(""); }}>Xóa bộ lọc</button>}
+      </div>
       <div className="mt-5 overflow-x-auto rounded-md border border-slate-200 bg-white">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b border-slate-100 text-left text-xs font-semibold uppercase text-slate-400">
@@ -154,6 +174,7 @@ export default function AdminProductsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
+            {!loading && !error && filtered.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-slate-500">Không có sản phẩm phù hợp.</td></tr>}
             {filtered.map((p) => (
               <tr key={p.id}>
                 <td className="flex items-center gap-3 p-3">

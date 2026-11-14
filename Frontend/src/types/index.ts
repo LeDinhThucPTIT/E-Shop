@@ -93,6 +93,7 @@ export interface Category {
   image?: string;
   icon?: string;
   productCount?: number;
+  sortOrder?: number;
   isActive?: boolean;
 }
 export interface ProductSpec {

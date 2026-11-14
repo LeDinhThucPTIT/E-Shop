@@ -20,7 +20,7 @@ import { formatVND } from "../../utils/format";
 const NAV_LINKS = [
   { label: "Trang chủ", to: "/" },
   { label: "Sản phẩm", to: "/products" },
-  { label: "Danh mục", to: "/products" },
+  { label: "Danh mục", to: "/categories" },
   { label: "Trợ lý AI", to: "/ai-assistant" },
   { label: "So sánh", to: "/compare" },
 ];

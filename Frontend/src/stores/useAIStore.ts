@@ -14,7 +14,7 @@ const WELCOME_MESSAGE: AIMessage = {
   id: "ai-welcome",
   role: "assistant",
   content:
-    "Ch?o b?n! M?nh c? th? t?m s?n ph?m theo ng?n s?ch, so s?nh th?ng s? v? ki?m tra t?n kho trong c?a h?ng. H?y cho m?nh bi?t lo?i thi?t b? v? ng?n s?ch c?a b?n.",
+    "Chào bạn! Mình có thể tìm sản phẩm theo ngân sách, so sánh thông số và kiểm tra tồn kho trong cửa hàng. Hãy cho mình biết loại thiết bị và ngân sách của bạn.",
   timestamp: new Date().toISOString(),
 };
 let controller: AbortController | null = null;
@@ -99,7 +99,7 @@ export const useAIStore = create<AIState>()(
     }),
     {
       name: "neuralstore-ai-conversation",
-      version: 1,
+      version: 2,
       partialize: (state) => ({ messages: state.messages }),
       migrate: (stored) => {
         const messages = (stored as { messages?: AIMessage[] })?.messages;
@@ -111,6 +111,11 @@ export const useAIStore = create<AIState>()(
                     m &&
                     typeof m.content === "string" &&
                     ["user", "assistant"].includes(m.role),
+                )
+                .map((m) =>
+                  m.id === WELCOME_MESSAGE.id && m.role === "assistant"
+                    ? { ...m, content: WELCOME_MESSAGE.content }
+                    : m,
                 )
                 .slice(-80)
             : [WELCOME_MESSAGE],

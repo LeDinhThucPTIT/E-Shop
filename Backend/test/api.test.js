@@ -412,6 +412,30 @@ test("taxonomy CRUD generates IDs and active filter works", async () => {
     assert.equal((await request("GET", `${url}?isActive=true`)).body.length, 0);
   }
 });
+test("category metadata counts active products and hiding preserves products", async () => {
+  const Product = require("../src/models/Products");
+  const created = await request("POST", "/categories", {
+    name: "Catalog metadata", slug: "catalog-metadata", sortOrder: 7,
+    image: "https://example.com/category.png",
+  }, adminToken);
+  assert.equal(created.status, 201);
+  const categoryId = created.body._id;
+  const fixtures = await Product.create([
+    { name: "Visible fixture", slug: "category-visible-fixture", price: 100, stock: 1, category: categoryId, isActive: true },
+    { name: "Hidden fixture", slug: "category-hidden-fixture", price: 100, stock: 1, category: categoryId, isActive: false },
+  ]);
+  try {
+    const listed = (await request("GET", "/categories?isActive=true")).body.find((c) => c._id === categoryId);
+    assert.equal(listed.productCount, 1);
+    assert.equal(listed.sortOrder, 7);
+    assert.equal(listed.image, "https://example.com/category.png");
+    assert.equal((await request("DELETE", `/categories/${categoryId}`, undefined, adminToken)).status, 200);
+    assert.equal((await request("GET", "/categories?isActive=true")).body.some((c) => c._id === categoryId), false);
+    assert.equal((await Product.findById(fixtures[0]._id)).isActive, true);
+  } finally {
+    await Product.deleteMany({ category: categoryId });
+  }
+});
 test("order uses server price, deduplicates concurrent retries and restores stock exactly once", async () => {
   await request(
     "POST",

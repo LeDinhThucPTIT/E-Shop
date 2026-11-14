@@ -334,8 +334,8 @@ function respond(message, history, inputCatalog) {
               (p.specifications || [])
                 .slice(0, 6)
                 .map((s) => `${s.name || s.label}: ${s.value}`)
-                .join("\n") || "Ch?a c? th?ng s? chi ti?t."
-            }\n${p.warranty ? `B?o h?nh: ${p.warranty} th?ng.` : "Ch?a c? th?ng tin b?o h?nh; vui l?ng li?n h? c?a h?ng."}`,
+                .join("\n") || "Chưa có thông số chi tiết."
+            }\n${p.warranty ? `Bảo hành: ${p.warranty} tháng.` : "Chưa có thông tin bảo hành; vui lòng liên hệ cửa hàng."}`,
         )
         .join("\n\n"),
       relevant,
