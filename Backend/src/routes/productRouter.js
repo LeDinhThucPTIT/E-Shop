@@ -4,6 +4,14 @@ const productController = require("../controllers/productController");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 router.get("/", productController.getAllProducts);
+router.get(
+  "/admin/all",
+  authMiddleware.verifyToken,
+  authMiddleware.isAdmin,
+  productController.getAllProductsAdmin,
+);
+router.get("/:id/reviews", productController.getReviews);
+router.post("/:id/reviews", authMiddleware.verifyToken, productController.createReview);
 router.get("/:id", productController.getProductById);
 router.post(
   "/",

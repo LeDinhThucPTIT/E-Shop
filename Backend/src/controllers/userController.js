@@ -1,93 +1,34 @@
-const userService = require("../services/userService");
-
-// admin
-const getAllUsers = async (req, res) => {
-  const query = req.query;
-  try {
-    const users = await userService.getAllUsers(query);
-    res.status(200).json(users);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-const getUserById = async (req, res) => {
-  const userId = req.params.id;
-  try {
-    const user = await userService.getUserById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json(user);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-const updateUser = async (req, res) => {
-  const userId = req.params.id;
-  const userData = req.body;
-  try {
-    const updatedUser = await userService.updateUser(userId, userData);
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-const deleteUser = async (req, res) => {
-  const userId = req.params.id;
-  try {
-    const deletedUser = await userService.deleteUser(userId);
-    if (!deletedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json({ message: "User deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-const countUsers = async (req, res) => {
-  const query = req.query;
-  try {
-    const count = await userService.countUsers(query);
-    res.status(200).json({ count });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// user
-const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const { userData, token } = await userService.loginUser(email, password);
-    res.status(200).json({ message: "Đăng nhập thành công", userData, token });
-  } catch (error) {
-    res.status(401).json({ message: error.message });
-  }
-};
-
-const registerUser = async (req, res) => {
-  const userData = req.body;
-  try {
-    const newUser = await userService.registerUser(userData);
-    res.status(201).json({ message: "Đăng ký thành công", user: newUser });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
+const service = require("../services/userService");
+const { handle, fail } = require("../utils/http");
 module.exports = {
-  getAllUsers,
-  getUserById,
-  updateUser,
-  deleteUser,
-  countUsers,
-  loginUser,
-  registerUser,
+  loginUser: handle(async (req, res) =>
+    res.json(await service.loginUser(req.body.email, req.body.password)),
+  ),
+  registerUser: handle(async (req, res) =>
+    res.status(201).json({ user: await service.registerUser(req.body) }),
+  ),
+  getAllUsers: handle(async (req, res) =>
+    res.json(await service.getAllUsers(req.query)),
+  ),
+  countUsers: handle(async (req, res) =>
+    res.json({ count: await service.countUsers(req.query) }),
+  ),
+  getUserById: handle(async (req, res) => {
+    const id = req.params.id === "me" ? req.user.id : req.params.id;
+    if (id !== req.user.id && req.user.role !== "admin")
+      throw fail(403, "Bạn không có quyền truy cập");
+    res.json(await service.getUserById(id));
+  }),
+  updateUser: handle(async (req, res) =>
+    res.json(
+      await service.updateUser(
+        req.params.id === "me" ? req.user.id : req.params.id,
+        req.body,
+        req.user,
+      ),
+    ),
+  ),
+  deleteUser: handle(async (req, res) =>
+    res.json(await service.deleteUser(req.params.id, req.user)),
+  ),
 };

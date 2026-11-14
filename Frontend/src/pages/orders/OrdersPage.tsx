@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PackageX, ChevronRight } from "lucide-react";
 import Container from "../../components/ui/Container";
@@ -7,7 +8,10 @@ import { useOrdersStore, STATUS_LABELS } from "../../stores/useOrdersStore";
 import { formatVND, formatDate } from "../../utils/format";
 import type { OrderStatus } from "../../types";
 
-const STATUS_VARIANT: Record<OrderStatus, "default" | "accent" | "success" | "warning" | "error" | "info"> = {
+const STATUS_VARIANT: Record<
+  OrderStatus,
+  "default" | "accent" | "success" | "warning" | "error" | "info"
+> = {
   pending: "warning",
   confirmed: "info",
   shipping: "accent",
@@ -17,7 +21,19 @@ const STATUS_VARIANT: Record<OrderStatus, "default" | "accent" | "success" | "wa
 
 export default function OrdersPage() {
   const navigate = useNavigate();
-  const { orders } = useOrdersStore();
+  const { orders, fetchOrders, isLoading, error } = useOrdersStore();
+  useEffect(() => {
+    void fetchOrders();
+  }, [fetchOrders]);
+  if (isLoading)
+    return <Container className="py-16">Đang tải đơn hàng...</Container>;
+  if (error)
+    return (
+      <Container className="py-16">
+        <p role="alert">{error}</p>
+        <button onClick={() => void fetchOrders()}>Thử lại</button>
+      </Container>
+    );
 
   if (orders.length === 0) {
     return (
@@ -55,15 +71,22 @@ export default function OrdersPage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-ink-900">#{order.id}</p>
-                <Badge variant={STATUS_VARIANT[order.status]}>{STATUS_LABELS[order.status]}</Badge>
+                <p className="text-sm font-semibold text-ink-900">
+                  #{order.id}
+                </p>
+                <Badge variant={STATUS_VARIANT[order.status]}>
+                  {STATUS_LABELS[order.status]}
+                </Badge>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                {order.items.length} sản phẩm • Đặt ngày {formatDate(order.createdAt)}
+                {order.items.length} sản phẩm • Đặt ngày{" "}
+                {formatDate(order.createdAt)}
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-base font-bold text-ink-900">{formatVND(order.total)}</span>
+              <span className="text-base font-bold text-ink-900">
+                {formatVND(order.total)}
+              </span>
               <ChevronRight size={18} className="text-slate-300" />
             </div>
           </Link>

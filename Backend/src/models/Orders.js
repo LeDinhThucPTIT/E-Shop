@@ -28,6 +28,7 @@ const shippingAddressSchema = new mongoose.Schema(
     ward: { type: String, required: true },
     district: { type: String, required: true },
     province: { type: String, required: true }, // Đổi 'city' thành 'province' cho chuẩn hành chính VN
+    email: { type: String, default: "" },
     notes: { type: String, default: "" }, // Ghi chú của khách (Giao giờ hành chính, gọi trước...)
   },
   { _id: false },
@@ -45,6 +46,14 @@ const orderSchema = new mongoose.Schema(
     shippingAddress: shippingAddressSchema,
 
     // --- 3. TIỀN NONG (KẾ TOÁN) ---
+    tax: { type: Number, default: 0 },
+    shippingMethod: {
+      type: String,
+      enum: ["standard", "express"],
+      default: "standard",
+    },
+    idempotencyKey: { type: String },
+    requestHash: { type: String },
     subtotal: { type: Number, required: true }, // Tổng tiền hàng chưa tính phí ship
     shippingFee: { type: Number, required: true }, // Phí vận chuyển
     discount: { type: Number, default: 0 }, // Số tiền được giảm
@@ -54,7 +63,7 @@ const orderSchema = new mongoose.Schema(
     // --- 4. THANH TOÁN (PAYMENT) ---
     paymentMethod: {
       type: String,
-      enum: ["cod", "vnpay", "momo", "zalopay"],
+      enum: ["cod", "vnpay", "momo", "zalopay", "bank-transfer"],
       required: true,
     },
     paymentStatus: {
@@ -92,7 +101,13 @@ const orderSchema = new mongoose.Schema(
 
 // Tạo Index để search nhanh theo User và Mã đơn hàng
 orderSchema.index({ user: 1, createdAt: -1 });
-orderSchema.index({ orderCode: 1 });
+orderSchema.index(
+  { user: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: "string" } },
+  },
+);
 
 const Order = mongoose.model("Order", orderSchema);
 module.exports = Order;

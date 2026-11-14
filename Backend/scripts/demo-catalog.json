@@ -1,0 +1,18 @@
+{
+  "categories": [
+    { "name": "Laptop", "slug": "laptop", "icon": "Laptop" },
+    { "name": "Smartphone", "slug": "smartphone", "icon": "Smartphone" },
+    { "name": "Tai nghe", "slug": "headphones", "icon": "Headphones" },
+    { "name": "Phụ kiện", "slug": "accessories", "icon": "Keyboard" }
+  ],
+  "products": [
+    { "name": "NeuralBook Air 14 — Demo", "slug": "demo-neuralbook-air-14", "sku": "DEMO-LAP-AIR", "category": "laptop", "description": "Sản phẩm giả lập dành cho bản demo portfolio. Laptop mỏng nhẹ cho học tập và lập trình. Giá và thông số chỉ để minh họa.", "price": 18000000, "discountPrice": 16500000, "stock": 15, "featured": true, "trending": true, "warranty": 12, "images": ["/demo/laptop.svg"], "specifications": [{ "name": "RAM", "value": "16GB" }, { "name": "SSD", "value": "512GB" }], "tags": ["demo", "lập trình"] },
+    { "name": "NeuralBook Studio 16 — Demo", "slug": "demo-neuralbook-studio-16", "sku": "DEMO-LAP-STUDIO", "category": "laptop", "description": "Laptop giả lập cho sáng tạo nội dung và lập trình. Không phải hàng hóa đang bán.", "price": 32000000, "stock": 8, "featured": true, "warranty": 24, "images": ["/demo/laptop.svg"], "specifications": [{ "name": "RAM", "value": "32GB" }, { "name": "SSD", "value": "1TB" }], "tags": ["demo", "sáng tạo"] },
+    { "name": "Neural Phone S — Demo", "slug": "demo-neural-phone-s", "sku": "DEMO-PHONE-S", "category": "smartphone", "description": "Điện thoại giả lập có biến thể màu và dung lượng để kiểm tra giỏ hàng theo SKU.", "price": 9000000, "stock": 12, "featured": true, "trending": true, "warranty": 12, "images": ["/demo/phone.svg"], "variants": [{ "sku": "DEMO-PHONE-BLACK-128", "color": "Đen", "storage": "128GB", "price": 9000000, "stock": 7 }, { "sku": "DEMO-PHONE-BLUE-256", "color": "Xanh", "storage": "256GB", "price": 11000000, "stock": 5 }], "tags": ["demo"] },
+    { "name": "Neural Phone Mini — Demo", "slug": "demo-neural-phone-mini", "sku": "DEMO-PHONE-MINI", "category": "smartphone", "description": "Điện thoại giả lập phân khúc phổ thông, dùng để kiểm tra lọc giá.", "price": 4500000, "stock": 20, "images": ["/demo/phone.svg"], "tags": ["demo"] },
+    { "name": "Neural Sound Pro — Demo", "slug": "demo-neural-sound-pro", "sku": "DEMO-SOUND-PRO", "category": "headphones", "description": "Tai nghe giả lập cho làm việc và giải trí.", "price": 2500000, "discountPrice": 1990000, "stock": 25, "featured": true, "images": ["/demo/headphones.svg"], "tags": ["demo"] },
+    { "name": "Neural Sound Lite — Demo", "slug": "demo-neural-sound-lite", "sku": "DEMO-SOUND-LITE", "category": "headphones", "description": "Sản phẩm hết hàng để kiểm tra giao diện và bộ lọc còn hàng.", "price": 790000, "stock": 0, "images": ["/demo/headphones.svg"], "tags": ["demo"] },
+    { "name": "Neural Keys 75 — Demo", "slug": "demo-neural-keys-75", "sku": "DEMO-KEYS-75", "category": "accessories", "description": "Bàn phím giả lập cho góc làm việc. Dữ liệu minh họa portfolio.", "price": 1500000, "stock": 18, "trending": true, "images": ["/demo/keyboard.svg"], "tags": ["demo", "lập trình"] },
+    { "name": "Neural Keys Compact — Demo", "slug": "demo-neural-keys-compact", "sku": "DEMO-KEYS-COMPACT", "category": "accessories", "description": "Bàn phím nhỏ gọn giả lập, dùng để thử tìm kiếm và so sánh.", "price": 890000, "stock": 2, "images": ["/demo/keyboard.svg"], "tags": ["demo"] }
+  ]
+}

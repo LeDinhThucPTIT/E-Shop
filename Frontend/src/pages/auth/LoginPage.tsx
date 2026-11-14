@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, Sparkles } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Mail, Lock } from "lucide-react";
 import Container from "../../components/ui/Container";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
@@ -9,6 +9,7 @@ import { useUIStore } from "../../stores/useUIStore";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuthStore();
   const { showToast } = useUIStore();
   const [email, setEmail] = useState("");
@@ -31,7 +32,11 @@ export default function LoginPage() {
       return;
     }
     showToast("Đăng nhập thành công!", "success");
-    navigate("/profile");
+    const from = (location.state as { from?: string })?.from;
+    navigate(
+      from?.startsWith("/") && !from.startsWith("//") ? from : "/profile",
+      { replace: true },
+    );
   };
 
   return (
@@ -42,7 +47,9 @@ export default function LoginPage() {
             NEURAL<span className="gradient-text">STORE</span>
           </span>
           <h1 className="mt-4 text-2xl font-bold text-ink-900">Đăng nhập</h1>
-          <p className="mt-1 text-sm text-slate-500">Chào mừng bạn quay trở lại</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Chào mừng bạn quay trở lại
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -64,7 +71,10 @@ export default function LoginPage() {
             required
           />
           <div className="flex justify-end">
-            <Link to="/forgot-password" className="text-xs font-medium text-accent-600 hover:underline">
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-accent-600 hover:underline"
+            >
               Quên mật khẩu?
             </Link>
           </div>
@@ -82,14 +92,18 @@ export default function LoginPage() {
         <div className="space-y-2.5">
           <button
             type="button"
-            onClick={() => showToast("Đăng nhập xã hội chỉ mang tính minh họa", "info")}
+            onClick={() =>
+              showToast("Đăng nhập xã hội chỉ mang tính minh họa", "info")
+            }
             className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-slate-300 text-sm font-medium text-ink-900 hover:bg-violet-50 hover:border-violet-300 transition-all duration-200"
           >
             Tiếp tục với Google
           </button>
           <button
             type="button"
-            onClick={() => showToast("Đăng nhập xã hội chỉ mang tính minh họa", "info")}
+            onClick={() =>
+              showToast("Đăng nhập xã hội chỉ mang tính minh họa", "info")
+            }
             className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-slate-300 text-sm font-medium text-ink-900 hover:bg-violet-50 hover:border-violet-300 transition-all duration-200"
           >
             Tiếp tục với Facebook
@@ -98,13 +112,13 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-slate-500">
           Chưa có tài khoản?{" "}
-          <Link to="/register" className="font-semibold text-accent-600 hover:underline">
+          <Link
+            to="/register"
+            className="font-semibold text-accent-600 hover:underline"
+          >
             Đăng ký ngay
           </Link>
         </p>
-        <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-violet-400">
-          <Sparkles size={12} /> Xác thực mô phỏng — không kết nối máy chủ thật
-        </div>
       </div>
     </Container>
   );

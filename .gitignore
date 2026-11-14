@@ -12,3 +12,8 @@ build/
 # File hệ thống / IDE
 .DS_Store
 .vscode/
+# TypeScript incremental cache
+.cache/
+
+# Local development MongoDB
+.local/

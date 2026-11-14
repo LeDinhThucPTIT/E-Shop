@@ -1,40 +1,25 @@
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET;
-
-const authMiddleware = {
-  verifyToken: (req, res, next) => {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        success: false,
-        message: "Bạn chưa đăng nhập hoặc không có quyền truy cập!",
-      });
-    }
-
-    const token = authHeader.split(" ")[1];
-    // Verify the token
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded; // gan thông tin người dùng vào req.user
+const User = require("../models/Users");
+const { fail } = require("../utils/http");
+const verifyToken = (req, res, next) =>
+  Promise.resolve()
+    .then(async () => {
+      const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      if (!token) throw fail(401, "Vui lòng đăng nhập");
+      let decoded;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch {
+        throw fail(401, "Phiên đăng nhập đã hết hạn");
+      }
+      const user = await User.findById(decoded.id).select("-password");
+      if (!user?.isActive) throw fail(401, "Tài khoản không khả dụng");
+      req.user = { id: String(user._id), role: user.role };
       next();
-    } catch (err) {
-      return res.status(401).json({
-        success: false,
-        message: "Token không hợp lệ hoặc đã hết hạn!",
-      });
-    }
-
-    // kiểm tra admin
-  },
-  isAdmin: (req, res, next) => {
-    if (req.user && req.user.role === "admin") {
-      next();
-    } else {
-      return res
-        .status(403)
-        .json({ success: false, message: "Bạn không có quyền truy cập!" });
-    }
-  },
-};
-module.exports = authMiddleware;
+    })
+    .catch(next);
+const isAdmin = (req, res, next) =>
+  req.user?.role === "admin"
+    ? next()
+    : next(fail(403, "Bạn không có quyền truy cập"));
+module.exports = { verifyToken, isAdmin };

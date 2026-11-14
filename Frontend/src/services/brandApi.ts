@@ -1,31 +1,30 @@
-import axiosClient from "./axiosClient";
+import client from "./axiosClient";
 import type { Brand } from "../types";
+
 export interface BrandQueryParams {
   page?: number;
   limit?: number;
   search?: string;
   isActive?: boolean;
 }
-
 export const brandApi = {
-  getAll: (params: BrandQueryParams): Promise<Brand[]> => {
-    const url = "/brands";
-    return axiosClient.get(url, { params });
+  getAll: async (params: BrandQueryParams = {}): Promise<Brand[]> => {
+    const { data } = await client.get("/brands", { params });
+    return data;
   },
-  getById: (id: string): Promise<Brand> => {
-    const url = `/brands/${id}`;
-    return axiosClient.get(url);
+  getById: async (id: string): Promise<Brand> => {
+    const { data } = await client.get(`/brands/${id}`);
+    return data;
   },
-  create: (data: Brand): Promise<Brand> => {
-    const url = "/brands";
-    return axiosClient.post(url, data);
+  create: async (input: Partial<Brand>): Promise<Brand> => {
+    const { data } = await client.post("/brands", input);
+    return data;
   },
-  update: (id: string, data: Brand): Promise<Brand> => {
-    const url = `/brands/${id}`;
-    return axiosClient.put(url, data);
+  update: async (id: string, input: Partial<Brand>): Promise<Brand> => {
+    const { data } = await client.put(`/brands/${id}`, input);
+    return data;
   },
-  delete: (id: string): Promise<void> => {
-    const url = `/brands/${id}`;
-    return axiosClient.delete(url);
+  delete: async (id: string): Promise<void> => {
+    await client.delete(`/brands/${id}`);
   },
 };

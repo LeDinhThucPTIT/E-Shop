@@ -11,7 +11,9 @@ export default function AIAssistantPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-ink-900">Trợ lý mua sắm AI</h1>
-          <p className="text-sm text-slate-500">Hỏi bất cứ điều gì về sản phẩm, ngân sách hoặc nhu cầu sử dụng</p>
+          <p className="text-sm text-slate-500">
+            Hỏi bất cứ điều gì về sản phẩm, ngân sách hoặc nhu cầu sử dụng
+          </p>
         </div>
       </div>
       <div className="h-[70vh] min-h-[500px] overflow-hidden rounded-lg border border-slate-200 shadow-sm">

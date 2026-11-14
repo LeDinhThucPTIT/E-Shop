@@ -1,74 +1,78 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import type { Order, OrderStatus } from "../types";
-import { generateOrderId } from "../utils/format";
-
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: "Chờ xác nhận",
-  confirmed: "Đã xác nhận",
-  shipping: "Đang giao hàng",
-  delivered: "Đã giao hàng",
-  cancelled: "Đã hủy",
-};
-
-function buildTimeline(status: OrderStatus, createdAt: string): Order["timeline"] {
-  const order: OrderStatus[] = ["pending", "confirmed", "shipping", "delivered"];
-  if (status === "cancelled") {
-    return [
-      { status: "pending", label: STATUS_LABELS.pending, timestamp: createdAt, done: true },
-      { status: "cancelled", label: STATUS_LABELS.cancelled, timestamp: createdAt, done: true },
-    ];
-  }
-  const currentIdx = order.indexOf(status);
-  return order.map((s, i) => ({
-    status: s,
-    label: STATUS_LABELS[s],
-    timestamp: createdAt,
-    done: i <= currentIdx,
-  }));
-}
-
+import type { Order } from "../types";
+import { orderApi, type CreateOrderInput } from "../services/orderApi";
+import { errorMessage } from "../services/axiosClient";
+export { STATUS_LABELS } from "../services/normalizers";
+let generation = 0;
 interface OrdersState {
   orders: Order[];
-  createOrder: (order: Omit<Order, "id" | "createdAt" | "status" | "timeline" | "estimatedDelivery">) => Order;
+  isLoading: boolean;
+  error: string;
+  fetchOrders: () => Promise<void>;
+  fetchOrder: (id: string) => Promise<void>;
+  createOrder: (input: CreateOrderInput, key: string) => Promise<Order>;
   getOrder: (id: string) => Order | undefined;
-  cancelOrder: (id: string) => void;
+  cancelOrder: (id: string, reason: string) => Promise<boolean>;
+  clear: () => void;
 }
-
-export const useOrdersStore = create<OrdersState>()(
-  persist(
-    (set, get) => ({
-      orders: [],
-      createOrder: (partial) => {
-        const createdAt = new Date().toISOString();
-        const days = partial.shippingMethod === "express" ? 2 : 5;
-        const estimatedDelivery = new Date(
-          Date.now() + days * 86400000
-        ).toISOString();
-        const status: OrderStatus = "pending";
-        const order: Order = {
-          ...partial,
-          id: generateOrderId(),
-          createdAt,
-          status,
-          estimatedDelivery,
-          timeline: buildTimeline(status, createdAt),
-        };
-        set({ orders: [order, ...get().orders] });
-        return order;
-      },
-      getOrder: (id) => get().orders.find((o) => o.id === id),
-      cancelOrder: (id) =>
-        set((state) => ({
-          orders: state.orders.map((o) =>
-            o.id === id
-              ? { ...o, status: "cancelled", timeline: buildTimeline("cancelled", o.createdAt) }
-              : o
-          ),
-        })),
-    }),
-    { name: "neuralstore-orders" }
-  )
+export const useOrdersStore = create<OrdersState>((set, get) => ({
+  orders: [],
+  isLoading: false,
+  error: "",
+  clear: () => {
+    generation++;
+    set({ orders: [], error: "", isLoading: false });
+  },
+  fetchOrders: async () => {
+    const current = generation;
+    set({ isLoading: true, error: "" });
+    try {
+      const orders = await orderApi.list();
+      if (current === generation) set({ orders, isLoading: false });
+    } catch (error) {
+      if (current === generation)
+        set({ error: errorMessage(error), isLoading: false });
+    }
+  },
+  fetchOrder: async (id) => {
+    const current = generation;
+    set({ isLoading: true, error: "" });
+    try {
+      const order = await orderApi.get(id);
+      if (current === generation)
+        set({
+          orders: [order, ...get().orders.filter((o) => o.id !== order.id)],
+          isLoading: false,
+        });
+    } catch (error) {
+      if (current === generation)
+        set({ error: errorMessage(error), isLoading: false });
+    }
+  },
+  createOrder: async (input, key) => {
+    const current = generation;
+    const order = await orderApi.create(input, key);
+    if (current !== generation) throw new Error("Phiên đăng nhập đã thay đổi");
+    set({ orders: [order, ...get().orders.filter((o) => o.id !== order.id)] });
+    return order;
+  },
+  getOrder: (id) => get().orders.find((o) => o.id === id || o._id === id),
+  cancelOrder: async (id, reason) => {
+    const current = generation;
+    try {
+      const order = await orderApi.cancel(id, reason);
+      if (current !== generation) return false;
+      set({
+        orders: get().orders.map((o) => (o._id === order._id ? order : o)),
+        error: "",
+      });
+      return true;
+    } catch (error) {
+      if (current === generation) set({ error: errorMessage(error) });
+      return false;
+    }
+  },
+}));
+window.addEventListener("auth:cleared", () =>
+  useOrdersStore.getState().clear(),
 );
-
-export { STATUS_LABELS };

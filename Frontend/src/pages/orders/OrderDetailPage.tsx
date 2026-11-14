@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Check, XCircle } from "lucide-react";
 import Container from "../../components/ui/Container";
@@ -22,10 +23,24 @@ const SHIPPING_LABELS: Record<string, string> = {
 export default function OrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getOrder, cancelOrder } = useOrdersStore();
+  const { getOrder, cancelOrder, fetchOrder, isLoading, error } =
+    useOrdersStore();
+  const [cancelling, setCancelling] = useState(false);
+  useEffect(() => {
+    if (id) void fetchOrder(id);
+  }, [id, fetchOrder]);
   const { showToast } = useUIStore();
   const order = id ? getOrder(id) : undefined;
 
+  if (isLoading)
+    return <Container className="py-16">Đang tải đơn hàng...</Container>;
+  if (error)
+    return (
+      <Container className="py-16">
+        <p role="alert">{error}</p>
+        <button onClick={() => id && void fetchOrder(id)}>Thử lại</button>
+      </Container>
+    );
   if (!order) {
     return (
       <Container className="py-16">
@@ -41,15 +56,30 @@ export default function OrderDetailPage() {
 
   return (
     <Container className="py-8">
-      <Breadcrumb items={[{ label: "Đơn hàng", to: "/orders" }, { label: `#${order.id}` }]} />
+      <Breadcrumb
+        items={[
+          { label: "Đơn hàng", to: "/orders" },
+          { label: `#${order.id}` },
+        ]}
+      />
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-ink-900">Đơn hàng #{order.id}</h1>
+        <h1 className="text-2xl font-bold text-ink-900">
+          Đơn hàng #{order.id}
+        </h1>
         {order.status === "pending" && (
           <Button
             variant="outline"
-            onClick={() => {
-              cancelOrder(order.id);
-              showToast("Đã hủy đơn hàng", "info");
+            disabled={cancelling}
+            onClick={async () => {
+              const reason = window.prompt("Lý do hủy đơn hàng");
+              if (!reason?.trim()) return;
+              setCancelling(true);
+              const ok = await cancelOrder(order._id, reason);
+              setCancelling(false);
+              showToast(
+                ok ? "Đã hủy đơn hàng" : useOrdersStore.getState().error,
+                ok ? "info" : "error",
+              );
             }}
           >
             Hủy đơn hàng
@@ -61,7 +91,9 @@ export default function OrderDetailPage() {
         <div>
           {/* Timeline */}
           <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <h2 className="mb-5 text-base font-semibold text-ink-900">Trạng thái đơn hàng</h2>
+            <h2 className="mb-5 text-base font-semibold text-ink-900">
+              Trạng thái đơn hàng
+            </h2>
             <div className="flex flex-col gap-0">
               {order.timeline.map((event, i) => (
                 <div key={event.status} className="flex gap-3">
@@ -78,14 +110,21 @@ export default function OrderDetailPage() {
                       {event.done ? <Check size={14} /> : null}
                     </div>
                     {i < order.timeline.length - 1 && (
-                      <div className={`w-0.5 flex-1 ${event.done ? "bg-success-500" : "bg-slate-200"}`} style={{ minHeight: 28 }} />
+                      <div
+                        className={`w-0.5 flex-1 ${event.done ? "bg-success-500" : "bg-slate-200"}`}
+                        style={{ minHeight: 28 }}
+                      />
                     )}
                   </div>
                   <div className="pb-6">
-                    <p className={`text-sm font-medium ${event.done ? "text-ink-900" : "text-slate-400"}`}>
+                    <p
+                      className={`text-sm font-medium ${event.done ? "text-ink-900" : "text-slate-400"}`}
+                    >
                       {event.label}
                     </p>
-                    <p className="text-xs text-slate-400">{formatDateTime(event.timestamp)}</p>
+                    <p className="text-xs text-slate-400">
+                      {formatDateTime(event.timestamp)}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -94,16 +133,31 @@ export default function OrderDetailPage() {
 
           {/* Products */}
           <div className="mt-6 rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-base font-semibold text-ink-900">Sản phẩm</h2>
+            <h2 className="mb-4 text-base font-semibold text-ink-900">
+              Sản phẩm
+            </h2>
             <div className="flex flex-col divide-y divide-slate-100">
               {order.items.map((item) => (
-                <div key={item.productId} className="flex items-center gap-3 py-3">
-                  <img src={item.image} alt={item.name} className="h-14 w-14 rounded-sm object-cover" />
+                <div
+                  key={item.productId}
+                  className="flex items-center gap-3 py-3"
+                >
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="h-14 w-14 rounded-sm object-cover"
+                  />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-ink-900">{item.name}</p>
-                    <p className="text-xs text-slate-400">SL: {item.quantity}</p>
+                    <p className="text-sm font-medium text-ink-900">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      SL: {item.quantity}
+                    </p>
                   </div>
-                  <span className="text-sm font-semibold text-ink-900">{formatVND(item.price * item.quantity)}</span>
+                  <span className="text-sm font-semibold text-ink-900">
+                    {formatVND(item.price * item.quantity)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -112,7 +166,9 @@ export default function OrderDetailPage() {
 
         <div className="space-y-6">
           <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-base font-semibold text-ink-900">Thanh toán & Vận chuyển</h2>
+            <h2 className="mb-3 text-base font-semibold text-ink-900">
+              Thanh toán & Vận chuyển
+            </h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-slate-600">
                 <span>Tạm tính</span>
@@ -120,7 +176,11 @@ export default function OrderDetailPage() {
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Vận chuyển</span>
-                <span>{order.shipping === 0 ? "Miễn phí" : formatVND(order.shipping)}</span>
+                <span>
+                  {order.shipping === 0
+                    ? "Miễn phí"
+                    : formatVND(order.shipping)}
+                </span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Thuế</span>
@@ -132,20 +192,34 @@ export default function OrderDetailPage() {
               </div>
             </div>
             <div className="mt-4 space-y-1 border-t border-slate-100 pt-4 text-sm text-slate-600">
-              <p><span className="text-slate-400">Thanh toán: </span>{PAYMENT_LABELS[order.paymentMethod]}</p>
-              <p><span className="text-slate-400">Vận chuyển: </span>{SHIPPING_LABELS[order.shippingMethod]}</p>
-              <p><span className="text-slate-400">Dự kiến giao: </span>{formatDate(order.estimatedDelivery)}</p>
+              <p>
+                <span className="text-slate-400">Thanh toán: </span>
+                {PAYMENT_LABELS[order.paymentMethod]}
+              </p>
+              <p>
+                <span className="text-slate-400">Vận chuyển: </span>
+                {SHIPPING_LABELS[order.shippingMethod]}
+              </p>
+              <p>
+                <span className="text-slate-400">Dự kiến giao: </span>
+                {formatDate(order.estimatedDelivery)}
+              </p>
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-base font-semibold text-ink-900">Địa chỉ giao hàng</h2>
+            <h2 className="mb-3 text-base font-semibold text-ink-900">
+              Địa chỉ giao hàng
+            </h2>
             <div className="space-y-1 text-sm text-slate-600">
-              <p className="font-medium text-ink-900">{order.address.fullName}</p>
+              <p className="font-medium text-ink-900">
+                {order.address.fullName}
+              </p>
               <p>{order.address.phone}</p>
               <p>{order.address.email}</p>
               <p>
-                {order.address.address}, {order.address.ward}, {order.address.district}, {order.address.city}
+                {order.address.address}, {order.address.ward},{" "}
+                {order.address.district}, {order.address.city}
               </p>
             </div>
           </div>

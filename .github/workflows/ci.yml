@@ -1,0 +1,56 @@
+name: Quality checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - run: npm ci --prefix Frontend
+      - run: npm run lint --prefix Frontend
+      - run: npm test --prefix Frontend
+      - run: npm run build --prefix Frontend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: Frontend/dist
+          retention-days: 7
+
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+      - run: npm ci --prefix Backend
+      # The integration suite starts its own isolated replica set.
+      - name: Install MongoDB executable
+        run: |
+          docker pull mongo:8.0
+          container=$(docker create mongo:8.0)
+          docker cp "$container:/usr/bin/mongod" "$RUNNER_TEMP/mongod"
+          docker rm "$container"
+          chmod +x "$RUNNER_TEMP/mongod"
+      - run: npm test --prefix Backend
+        env:
+          MONGOD_BINARY: ${{ runner.temp }}/mongod

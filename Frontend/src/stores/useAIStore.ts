@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AIMessage } from "../types";
-import { getAIResponse } from "../utils/aiService";
+import { getAIResponse, type ChatHistoryMessage } from "../utils/aiService";
+import { errorMessage } from "../services/axiosClient";
 
 interface AIState {
   messages: AIMessage[];
@@ -9,43 +10,113 @@ interface AIState {
   sendMessage: (content: string) => Promise<void>;
   clearConversation: () => void;
 }
-
 const WELCOME_MESSAGE: AIMessage = {
   id: "ai-welcome",
   role: "assistant",
   content:
-    "Xin chào! Mình là Trợ lý mua sắm AI của NEURALSTORE 👋 Hãy cho mình biết bạn đang tìm sản phẩm gì, ngân sách bao nhiêu, hoặc mục đích sử dụng — mình sẽ gợi ý những lựa chọn phù hợp nhất.",
+    "Ch?o b?n! M?nh c? th? t?m s?n ph?m theo ng?n s?ch, so s?nh th?ng s? v? ki?m tra t?n kho trong c?a h?ng. H?y cho m?nh bi?t lo?i thi?t b? v? ng?n s?ch c?a b?n.",
   timestamp: new Date().toISOString(),
 };
-
+let controller: AbortController | null = null;
+let generation = 0;
 export const useAIStore = create<AIState>()(
   persist(
     (set, get) => ({
       messages: [WELCOME_MESSAGE],
       isTyping: false,
-      sendMessage: async (content) => {
+      sendMessage: async (input) => {
+        const content = input.trim();
+        if (!content || content.length > 2000 || get().isTyping) return;
+        const history: ChatHistoryMessage[] = get()
+          .messages.filter((m) => m.id !== "ai-welcome")
+          .slice(-12)
+          .map((m) => ({
+            role: m.role,
+            content: m.content.slice(0, 2000),
+            ...(m.role === "assistant"
+              ? {
+                  productIds: (m.recommendedProducts || [])
+                    .filter((id) => /^[a-f\d]{24}$/i.test(id))
+                    .slice(0, 5),
+                }
+              : {}),
+          }));
+        const current = generation;
+        controller = new AbortController();
         const userMessage: AIMessage = {
-          id: `msg-${Date.now()}`,
+          id: crypto.randomUUID(),
           role: "user",
           content,
           timestamp: new Date().toISOString(),
         };
-        set({ messages: [...get().messages, userMessage], isTyping: true });
-
-        const history = get().messages.map((m) => m.content);
-        const response = await getAIResponse(content, history);
-
-        const assistantMessage: AIMessage = {
-          id: `msg-${Date.now()}-ai`,
-          role: "assistant",
-          content: response.text,
-          timestamp: new Date().toISOString(),
-          recommendedProducts: response.recommendedProducts.map((p) => p.id),
-        };
-        set({ messages: [...get().messages, assistantMessage], isTyping: false });
+        set({
+          messages: [...get().messages, userMessage].slice(-80),
+          isTyping: true,
+        });
+        try {
+          const response = await getAIResponse(
+            content,
+            history,
+            controller.signal,
+          );
+          if (current !== generation) return;
+          const assistantMessage: AIMessage = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: response.text,
+            timestamp: new Date().toISOString(),
+            recommendedProducts: response.recommendedProducts.map((p) => p.id),
+            productSnapshots: response.recommendedProducts,
+          };
+          set({
+            messages: [...get().messages, assistantMessage].slice(-80),
+            isTyping: false,
+          });
+        } catch (error) {
+          if (current !== generation) return;
+          set({
+            messages: [
+              ...get().messages,
+              {
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: errorMessage(error),
+                timestamp: new Date().toISOString(),
+              },
+            ].slice(-80) as AIMessage[],
+            isTyping: false,
+          });
+        } finally {
+          if (current === generation) controller = null;
+        }
       },
-      clearConversation: () => set({ messages: [WELCOME_MESSAGE] }),
+      clearConversation: () => {
+        generation++;
+        controller?.abort();
+        controller = null;
+        set({ messages: [WELCOME_MESSAGE], isTyping: false });
+      },
     }),
-    { name: "neuralstore-ai-conversation" }
-  )
+    {
+      name: "neuralstore-ai-conversation",
+      version: 1,
+      partialize: (state) => ({ messages: state.messages }),
+      migrate: (stored) => {
+        const messages = (stored as { messages?: AIMessage[] })?.messages;
+        return {
+          messages: Array.isArray(messages)
+            ? messages
+                .filter(
+                  (m) =>
+                    m &&
+                    typeof m.content === "string" &&
+                    ["user", "assistant"].includes(m.role),
+                )
+                .slice(-80)
+            : [WELCOME_MESSAGE],
+          isTyping: false,
+        };
+      },
+    },
+  ),
 );

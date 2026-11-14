@@ -3,14 +3,14 @@ const mongoose = require("mongoose");
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    slug: { type: String, unique: true },
-    sku: { type: String, unique: true }, // [MỚI] Mã quản lý kho tổng
+    slug: { type: String, unique: true, required: true, trim: true },
+    sku: { type: String, unique: true, sparse: true }, // [MỚI] Mã quản lý kho tổng
     description: String,
 
     // Giá và tồn kho mặc định (dùng để hiển thị ngoài trang chủ)
-    price: Number,
-    discountPrice: Number,
-    stock: Number,
+    price: { type: Number, min: 0, required: true },
+    discountPrice: { type: Number, min: 0 },
+    stock: { type: Number, min: 0, default: 0 },
 
     images: [String],
     thumbnail: String, // [MỚI] Nên tách ảnh bìa riêng để load nhanh ở trang danh sách
@@ -32,8 +32,8 @@ const productSchema = new mongoose.Schema(
         sku: String, // Mã kho riêng cho biến thể này
         color: String, // VD: "Titan tự nhiên"
         storage: String, // VD: "256GB"
-        price: Number, // Giá riêng của phiên bản này
-        stock: Number, // Tồn kho riêng của phiên bản này
+        price: { type: Number, min: 0, required: true }, // Giá riêng của phiên bản này
+        stock: { type: Number, min: 0, default: 0 }, // Tồn kho riêng của phiên bản này
         image: String, // Ảnh riêng cho màu này
       },
     ],

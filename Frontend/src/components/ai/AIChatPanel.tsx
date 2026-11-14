@@ -1,9 +1,10 @@
+import type { Product } from "../../types";
 import { useEffect, useRef, useState } from "react";
 import { Send, Sparkles, Trash2, X, ShoppingCart } from "lucide-react";
 import { useAIStore } from "../../stores/useAIStore";
 import { useCartStore } from "../../stores/useCartStore";
 import { useUIStore } from "../../stores/useUIStore";
-import { getProductById } from "../../data/products";
+import { getProductById, useCatalogStore } from "../../stores/useCatalogStore";
 import { formatVND } from "../../utils/format";
 import { suggestedPrompts } from "../../utils/aiService";
 import { Link } from "react-router-dom";
@@ -16,13 +17,17 @@ export default function AIChatPanel({
   onClose?: () => void;
 }) {
   const { messages, isTyping, sendMessage, clearConversation } = useAIStore();
-  const { addItem } = useCartStore();
+  const { addItem, isLoading: cartLoading } = useCartStore();
   const { showToast } = useUIStore();
+  useCatalogStore((s) => s.products);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [messages, isTyping]);
 
   const submit = (text: string) => {
@@ -31,9 +36,9 @@ export default function AIChatPanel({
     setInput("");
   };
 
-  const handleAddToCart = (productId: string) => {
-    addItem(productId, 1);
-    showToast("Đã thêm vào giỏ hàng", "success");
+  const handleAddToCart = async (product: Product) => {
+    if (await addItem(product.id, product.sku, 1))
+      showToast("Đã thêm vào giỏ hàng", "success");
   };
 
   return (
@@ -44,7 +49,9 @@ export default function AIChatPanel({
             <Sparkles size={15} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-ink-900">Trợ lý AI NEURALSTORE</p>
+            <p className="text-sm font-semibold text-ink-900">
+              Trợ lý AI NEURALSTORE
+            </p>
             <p className="text-xs text-success-600">● Đang hoạt động</p>
           </div>
         </div>
@@ -69,9 +76,15 @@ export default function AIChatPanel({
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div
+        ref={scrollRef}
+        className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+      >
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div
+            key={msg.id}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
             <div
               className={`max-w-[85%] whitespace-pre-line rounded-md px-3.5 py-2.5 text-sm leading-relaxed ${
                 msg.role === "user"
@@ -80,46 +93,55 @@ export default function AIChatPanel({
               }`}
             >
               {msg.content}
-              {msg.recommendedProducts && msg.recommendedProducts.length > 0 && (
-                <div className={`mt-3 grid gap-2 ${compact ? "grid-cols-1" : "sm:grid-cols-2"}`}>
-                  {msg.recommendedProducts.map((pid) => {
-                    const product = getProductById(pid);
-                    if (!product) return null;
-                    return (
-                      <div
-                        key={pid}
-                        className="flex items-center gap-2.5 rounded-sm border border-slate-200 bg-white p-2"
-                      >
-                        <Link to={`/products/${product.slug}`} className="shrink-0">
-                          <img
-                            src={product.images[0]}
-                            alt={product.name}
-                            className="h-12 w-12 rounded-sm object-cover"
-                          />
-                        </Link>
-                        <div className="min-w-0 flex-1">
+              {msg.recommendedProducts &&
+                msg.recommendedProducts.length > 0 && (
+                  <div
+                    className={`mt-3 grid gap-2 ${compact ? "grid-cols-1" : "sm:grid-cols-2"}`}
+                  >
+                    {msg.recommendedProducts.map((pid) => {
+                      const product =
+                        msg.productSnapshots?.find((p) => p.id === pid) ||
+                        getProductById(pid);
+                      if (!product) return null;
+                      return (
+                        <div
+                          key={pid}
+                          className="flex items-center gap-2.5 rounded-sm border border-slate-200 bg-white p-2"
+                        >
                           <Link
                             to={`/products/${product.slug}`}
-                            className="line-clamp-1 text-xs font-semibold text-ink-900 hover:text-accent-600"
+                            className="shrink-0"
                           >
-                            {product.name}
+                            <img
+                              src={product.images[0]}
+                              alt={product.name}
+                              className="h-12 w-12 rounded-sm object-cover"
+                            />
                           </Link>
-                          <p className="text-xs font-bold text-accent-600">
-                            {formatVND(product.price)}
-                          </p>
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              to={`/products/${product.slug}`}
+                              className="line-clamp-1 text-xs font-semibold text-ink-900 hover:text-accent-600"
+                            >
+                              {product.name}
+                            </Link>
+                            <p className="text-xs font-bold text-accent-600">
+                              {formatVND(product.price)}
+                            </p>
+                          </div>
+                          <button
+                            disabled={cartLoading || product.stock <= 0}
+                            onClick={() => void handleAddToCart(product)}
+                            aria-label="Thêm vào giỏ hàng"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-900 text-white hover:bg-accent-600 disabled:opacity-40"
+                          >
+                            <ShoppingCart size={12} />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleAddToCart(product.id)}
-                          aria-label="Thêm vào giỏ hàng"
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-900 text-white hover:bg-accent-600"
-                        >
-                          <ShoppingCart size={12} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
             </div>
           </div>
         ))}
@@ -160,6 +182,7 @@ export default function AIChatPanel({
         className="flex items-center gap-2 border-t border-slate-100 p-3"
       >
         <input
+          maxLength={2000}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Hỏi trợ lý AI về sản phẩm..."

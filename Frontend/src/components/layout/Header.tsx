@@ -1,12 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Heart, ShoppingCart, User, Menu, Sparkles, Clock } from "lucide-react";
+import {
+  Search,
+  Heart,
+  ShoppingCart,
+  User,
+  Menu,
+  Sparkles,
+  Clock,
+} from "lucide-react";
 import Container from "../ui/Container";
 import { useCartStore } from "../../stores/useCartStore";
 import { useWishlistStore } from "../../stores/useWishlistStore";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useUIStore } from "../../stores/useUIStore";
-import { products } from "../../data/products";
+import { useCatalogStore } from "../../stores/useCatalogStore";
 import { formatVND } from "../../utils/format";
 
 const NAV_LINKS = [
@@ -18,6 +26,7 @@ const NAV_LINKS = [
 ];
 
 export default function Header() {
+  const products = useCatalogStore((s) => s.products);
   const navigate = useNavigate();
   const totalItems = useCartStore((s) => s.totalItems());
   const wishlistCount = useWishlistStore((s) => s.productIds.length);
@@ -28,7 +37,9 @@ export default function Header() {
   const [showResults, setShowResults] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem("neuralstore-recent-searches") || "[]");
+      return JSON.parse(
+        localStorage.getItem("neuralstore-recent-searches") || "[]",
+      );
     } catch {
       return [];
     }
@@ -51,14 +62,17 @@ export default function Header() {
           (p) =>
             p.name.toLowerCase().includes(query.toLowerCase()) ||
             p.brand.toLowerCase().includes(query.toLowerCase()) ||
-            p.category.toLowerCase().includes(query.toLowerCase())
+            p.category.toLowerCase().includes(query.toLowerCase()),
         )
         .slice(0, 5)
     : [];
 
   const commitSearch = (term: string) => {
     if (!term.trim()) return;
-    const next = [term, ...recentSearches.filter((s) => s !== term)].slice(0, 5);
+    const next = [term, ...recentSearches.filter((s) => s !== term)].slice(
+      0,
+      5,
+    );
     setRecentSearches(next);
     localStorage.setItem("neuralstore-recent-searches", JSON.stringify(next));
     setShowResults(false);
@@ -85,7 +99,10 @@ export default function Header() {
           </span>
         </Link>
 
-        <div ref={searchRef} className="relative hidden flex-1 max-w-xl md:block">
+        <div
+          ref={searchRef}
+          className="relative hidden flex-1 max-w-xl md:block"
+        >
           <Search
             size={16}
             className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
@@ -104,7 +121,9 @@ export default function Header() {
             <div className="absolute left-0 right-0 top-12 max-h-96 overflow-y-auto rounded-md border border-slate-200 bg-white p-2 shadow-lg animate-fadeIn">
               {!query.trim() && recentSearches.length > 0 && (
                 <div className="mb-2">
-                  <p className="px-2 py-1 text-xs font-semibold text-slate-400">Tìm kiếm gần đây</p>
+                  <p className="px-2 py-1 text-xs font-semibold text-slate-400">
+                    Tìm kiếm gần đây
+                  </p>
                   {recentSearches.map((s) => (
                     <button
                       key={s}
@@ -128,10 +147,18 @@ export default function Header() {
                   onClick={() => setShowResults(false)}
                   className="flex items-center gap-3 rounded-sm p-2 hover:bg-slate-50"
                 >
-                  <img src={p.images[0]} alt="" className="h-10 w-10 rounded-sm object-cover" />
+                  <img
+                    src={p.images[0]}
+                    alt=""
+                    className="h-10 w-10 rounded-sm object-cover"
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink-900">{p.name}</p>
-                    <p className="text-xs text-slate-400">{formatVND(p.price)}</p>
+                    <p className="truncate text-sm font-medium text-ink-900">
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {formatVND(p.price)}
+                    </p>
                   </div>
                 </Link>
               ))}
@@ -147,7 +174,10 @@ export default function Header() {
           )}
         </div>
 
-        <nav className="hidden items-center gap-6 lg:flex" aria-label="Điều hướng chính">
+        <nav
+          className="hidden items-center gap-6 lg:flex"
+          aria-label="Điều hướng chính"
+        >
           {NAV_LINKS.map((link) => (
             <Link
               key={link.label}
@@ -208,11 +238,17 @@ export default function Header() {
 
       <div className="border-t border-slate-100 px-4 py-2 md:hidden">
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
           <input
             type="search"
             placeholder="Search products or ask AI..."
-            onKeyDown={(e) => e.key === "Enter" && commitSearch((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) =>
+              e.key === "Enter" &&
+              commitSearch((e.target as HTMLInputElement).value)
+            }
             className="h-9 w-full rounded-full border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm outline-none focus:border-accent-400"
           />
         </div>

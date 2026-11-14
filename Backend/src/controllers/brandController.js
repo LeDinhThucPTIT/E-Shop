@@ -1,59 +1,40 @@
-const brandService = require("../services/brandService");
-
-const getAllBrands = async (req, res) => {
-  try {
-    const brands = await brandService.getAllBrands();
-    res.status(200).json(brands);
-  } catch (error) {
-    res.status(500).json({ error: "Error retrieving brands" });
-  }
-};
-
-const getBrandById = async (req, res) => {
-  const { brandId } = req.params;
-  try {
-    const brand = await brandService.getBrandById(brandId);
-    res.status(200).json(brand);
-  } catch (error) {
-    res.status(500).json({ error: "Error retrieving brand" });
-  }
-};
-
-const createBrand = async (req, res) => {
-  const brandData = req.body;
-  try {
-    const newBrand = await brandService.createBrand(brandData);
-    res.status(201).json(newBrand);
-  } catch (error) {
-    res.status(500).json({ error: "Error creating brand" });
-  }
-};
-
-const updateBrand = async (req, res) => {
-  const { brandId } = req.params;
-  const brandData = req.body;
-  try {
-    const updatedBrand = await brandService.updateBrand(brandId, brandData);
-    res.status(200).json(updatedBrand);
-  } catch (error) {
-    res.status(500).json({ error: "Error updating brand" });
-  }
-};
-
-const deleteBrand = async (req, res) => {
-  const { brandId } = req.params;
-  try {
-    const deletedBrand = await brandService.deleteBrand(brandId);
-    res.status(200).json(deletedBrand);
-  } catch (error) {
-    res.status(500).json({ error: "Error deleting brand" });
-  }
-};
-
+const Model = require("../models/Brands");
+const { handle, fail, requireId, pick } = require("../utils/http");
+const fields = ["name", "slug", "description", "logo", "isActive"];
 module.exports = {
-  getAllBrands,
-  getBrandById,
-  createBrand,
-  updateBrand,
-  deleteBrand,
+  getAllBrands: handle(async (req, res) =>
+    res.json(
+      await Model.find({
+        ...(req.query.isActive !== undefined
+          ? { isActive: req.query.isActive === "true" }
+          : {}),
+      }).sort({ name: 1 }),
+    ),
+  ),
+  getBrandById: handle(async (req, res) => {
+    const item = await Model.findById(requireId(req.params.brandId));
+    if (!item) throw fail(404, "Không tìm thấy dữ liệu");
+    res.json(item);
+  }),
+  createBrand: handle(async (req, res) =>
+    res.status(201).json(await Model.create(pick(req.body, fields))),
+  ),
+  updateBrand: handle(async (req, res) => {
+    const item = await Model.findByIdAndUpdate(
+      requireId(req.params.brandId),
+      pick(req.body, fields),
+      { returnDocument: "after", runValidators: true },
+    );
+    if (!item) throw fail(404, "Không tìm thấy dữ liệu");
+    res.json(item);
+  }),
+  deleteBrand: handle(async (req, res) => {
+    const item = await Model.findByIdAndUpdate(
+      requireId(req.params.brandId),
+      { isActive: false },
+      { returnDocument: "after" },
+    );
+    if (!item) throw fail(404, "Không tìm thấy dữ liệu");
+    res.json(item);
+  }),
 };

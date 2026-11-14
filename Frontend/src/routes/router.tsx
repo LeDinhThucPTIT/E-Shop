@@ -1,3 +1,4 @@
+import RequireAuth from "./RequireAuth";
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import AdminLayout from "../layouts/AdminLayout";
@@ -33,14 +34,19 @@ export const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: "products", element: <ProductsPage /> },
       { path: "products/:slug", element: <ProductDetailPage /> },
-      { path: "cart", element: <CartPage /> },
       { path: "wishlist", element: <WishlistPage /> },
       { path: "compare", element: <ComparePage /> },
-      { path: "checkout", element: <CheckoutPage /> },
-      { path: "checkout/success", element: <OrderSuccessPage /> },
-      { path: "orders", element: <OrdersPage /> },
-      { path: "orders/:id", element: <OrderDetailPage /> },
-      { path: "profile", element: <ProfilePage /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: "cart", element: <CartPage /> },
+          { path: "checkout", element: <CheckoutPage /> },
+          { path: "checkout/success", element: <OrderSuccessPage /> },
+          { path: "orders", element: <OrdersPage /> },
+          { path: "orders/:id", element: <OrderDetailPage /> },
+          { path: "profile", element: <ProfilePage /> },
+        ],
+      },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
@@ -50,14 +56,20 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: "/admin",
-    element: <AdminLayout />,
+    element: <RequireAuth admin />,
     children: [
-      { index: true, element: <AdminDashboardPage /> },
-      { path: "products", element: <AdminProductsPage /> },
-      { path: "orders", element: <AdminOrdersPage /> },
-      { path: "users", element: <AdminUsersPage /> },
-      { path: "categories", element: <AdminCategoriesPage /> },
+      {
+        path: "/admin",
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <AdminDashboardPage /> },
+          { path: "products", element: <AdminProductsPage /> },
+          { path: "orders", element: <AdminOrdersPage /> },
+          { path: "users", element: <AdminUsersPage /> },
+          { path: "brands", element: <AdminCategoriesPage brands /> },
+          { path: "categories", element: <AdminCategoriesPage /> },
+        ],
+      },
     ],
   },
 ]);

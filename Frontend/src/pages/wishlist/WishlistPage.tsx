@@ -6,7 +6,7 @@ import Rating from "../../components/ui/Rating";
 import { Link } from "react-router-dom";
 import { useWishlistStore } from "../../stores/useWishlistStore";
 import { useCartStore } from "../../stores/useCartStore";
-import { getProductById } from "../../data/products";
+import { getProductById, useCatalogStore } from "../../stores/useCatalogStore";
 import { formatVND } from "../../utils/format";
 import { useUIStore } from "../../stores/useUIStore";
 
@@ -15,6 +15,7 @@ export default function WishlistPage() {
   const { productIds, remove } = useWishlistStore();
   const { addItem } = useCartStore();
   const { showToast } = useUIStore();
+  useCatalogStore((s) => s.products);
 
   if (productIds.length === 0) {
     return (
@@ -34,14 +35,23 @@ export default function WishlistPage() {
 
   return (
     <Container className="py-8">
-      <h1 className="mb-6 text-2xl font-bold text-ink-900">Yêu thích ({items.length})</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink-900">
+        Yêu thích ({items.length})
+      </h1>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((product) => {
           if (!product) return null;
           return (
-            <div key={product.id} className="flex gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+            <div
+              key={product.id}
+              className="flex gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+            >
               <Link to={`/products/${product.slug}`} className="shrink-0">
-                <img src={product.images[0]} alt={product.name} className="h-20 w-20 rounded-sm object-cover" />
+                <img
+                  src={product.images[0]}
+                  alt={product.name}
+                  className="h-20 w-20 rounded-sm object-cover"
+                />
               </Link>
               <div className="flex flex-1 flex-col justify-between">
                 <div>
@@ -52,14 +62,27 @@ export default function WishlistPage() {
                     {product.name}
                   </Link>
                   <div className="mt-1">
-                    <Rating value={product.rating} size={11} showValue={false} />
+                    <Rating
+                      value={product.rating}
+                      size={11}
+                      showValue={false}
+                    />
                   </div>
-                  <p className="mt-1 text-sm font-bold text-ink-900">{formatVND(product.price)}</p>
+                  <p className="mt-1 text-sm font-bold text-ink-900">
+                    {formatVND(product.price)}
+                  </p>
                 </div>
                 <div className="mt-2 flex gap-2">
                   <button
-                    onClick={() => {
-                      addItem(product.id, 1);
+                    onClick={async () => {
+                      if (
+                        !(await addItem(
+                          product.id,
+                          product.variants[0]?.sku || product.sku,
+                          1,
+                        ))
+                      )
+                        return;
                       remove(product.id);
                       showToast("Đã chuyển sang giỏ hàng", "success");
                     }}

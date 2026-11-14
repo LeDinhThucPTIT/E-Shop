@@ -11,7 +11,13 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuthStore();
   const { showToast } = useUIStore();
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    phone: "",
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -19,20 +25,32 @@ export default function RegisterPage() {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!form.fullName.trim()) errs.fullName = "Vui lòng nhập họ tên";
+    if (!/^\d{9,11}$/.test(form.phone))
+      errs.phone = "Số điện thoại không hợp lệ";
     if (!form.email.includes("@")) errs.email = "Email không hợp lệ";
-    if (form.password.length < 6) errs.password = "Mật khẩu phải có ít nhất 6 ký tự";
-    if (form.password !== form.confirmPassword) errs.confirmPassword = "Mật khẩu xác nhận không khớp";
+    if (form.password.length < 6)
+      errs.password = "Mật khẩu phải có ít nhất 6 ký tự";
+    if (form.password !== form.confirmPassword)
+      errs.confirmPassword = "Mật khẩu xác nhận không khớp";
     setErrors(errs);
     if (Object.keys(errs).length) return;
 
     setLoading(true);
-    const res = await register(form.fullName, form.email, form.password);
+    const res = await register(
+      form.fullName,
+      form.email,
+      form.password,
+      form.phone,
+    );
     setLoading(false);
     if (!res.ok) {
       setErrors({ email: res.message || "Đăng ký thất bại." });
       return;
     }
-    showToast("Đăng ký thành công! Chào mừng bạn đến với NEURALSTORE.", "success");
+    showToast(
+      "Đăng ký thành công! Chào mừng bạn đến với NEURALSTORE.",
+      "success",
+    );
     navigate("/profile");
   };
 
@@ -43,11 +61,22 @@ export default function RegisterPage() {
           <span className="text-xl font-extrabold text-ink-900">
             NEURAL<span className="text-accent-500">STORE</span>
           </span>
-          <h1 className="mt-4 text-2xl font-bold text-ink-900">Tạo tài khoản</h1>
-          <p className="mt-1 text-sm text-slate-500">Bắt đầu mua sắm thông minh với AI</p>
+          <h1 className="mt-4 text-2xl font-bold text-ink-900">
+            Tạo tài khoản
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Bắt đầu mua sắm thông minh với AI
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Số điện thoại"
+            type="tel"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            error={errors.phone}
+          />
           <Input
             label="Họ và tên"
             icon={<User size={16} />}
@@ -76,7 +105,9 @@ export default function RegisterPage() {
             type="password"
             icon={<Lock size={16} />}
             value={form.confirmPassword}
-            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, confirmPassword: e.target.value })
+            }
             error={errors.confirmPassword}
           />
           <Button type="submit" fullWidth size="lg" loading={loading}>
@@ -86,7 +117,10 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-slate-500">
           Đã có tài khoản?{" "}
-          <Link to="/login" className="font-semibold text-accent-600 hover:underline">
+          <Link
+            to="/login"
+            className="font-semibold text-accent-600 hover:underline"
+          >
             Đăng nhập
           </Link>
         </p>

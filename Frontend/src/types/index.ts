@@ -11,16 +11,13 @@ export interface Review {
 }
 
 export type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "shipping"
-  | "delivered"
-  | "cancelled";
+  "pending" | "confirmed" | "shipping" | "delivered" | "cancelled";
 
 export type PaymentMethod = "cod" | "vnpay" | "momo" | "bank-transfer";
 
 export interface OrderItem {
   productId: string;
+  sku: string;
   name: string;
   image: string;
   price: number;
@@ -35,6 +32,7 @@ export interface OrderTimelineEvent {
 }
 
 export interface Order {
+  _id: string;
   id: string;
   items: OrderItem[];
   subtotal: number;
@@ -65,6 +63,7 @@ export interface AIMessage {
   content: string;
   timestamp: string;
   recommendedProducts?: string[];
+  productSnapshots?: Product[];
 }
 
 export interface User {
@@ -73,9 +72,10 @@ export interface User {
   email: string;
   phone?: string;
   avatar?: string;
+  role: "user" | "admin";
+  isActive?: boolean;
 }
-//=======================================================================================================================================
-// Đã sửa
+
 export interface Brand {
   _id: string;
   name: string;
@@ -83,90 +83,72 @@ export interface Brand {
   logo: string;
   description: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
-
 export interface Category {
   _id: string;
+  id: string;
   name: string;
-  slug: String;
-  description: String;
-  image: String;
-  isActive: Boolean;
-  createdAt: String;
-  updatedAt: String;
+  slug: string;
+  description?: string;
+  image?: string;
+  icon?: string;
+  productCount?: number;
+  isActive?: boolean;
 }
-
 export interface ProductSpec {
-  _id?: string; // Mongoose tự sinh _id cho các item trong mảng
+  _id?: string;
   name: string;
+  label: string;
   value: string;
 }
-
 export interface ProductVariant {
-  _id?: string;
-  sku?: string;
+  sku: string;
   color?: string;
   storage?: string;
-  price?: number;
-  stock?: number;
+  price: number;
+  stock: number;
   image?: string;
 }
-
 export interface Product {
-  _id: string; // Mongoose mặc định dùng _id thay vì id
-  id?: string;
+  version: number;
+  _id: string;
+  id: string;
   name: string;
-  slug?: string;
-  sku?: string;
-  description?: string;
-
-  price?: number;
-  discountPrice?: number;
+  slug: string;
+  sku: string;
+  description: string;
+  shortDescription: string;
+  price: number;
+  basePrice: number;
+  discountPrice?: number | null;
   originalPrice?: number;
-  discount?: number;
-  stock?: number;
-
-  images?: string[];
+  discount: number;
+  stock: number;
+  images: string[];
   thumbnail?: string;
-
-  // LƯU Ý TRỌNG TÂM: Khai báo linh hoạt cho brand và category
-  category?: string | Category;
-  brand?: string | Brand;
-
-  specifications?: ProductSpec[];
-  variants?: ProductVariant[];
-
-  warranty?: number;
-  tags?: string[];
-
-  rating?: number;
-  reviewCount?: number;
-  soldCount?: number;
-
-  featured?: boolean;
-  trending?: boolean;
-  isActive?: boolean;
-
-  // Do bạn có dùng { timestamps: true } trong Mongoose
-  createdAt?: string;
-  updatedAt?: string;
+  category: string;
+  categoryId: string;
+  categoryName: string;
+  brand: string;
+  brandId: string;
+  specifications: ProductSpec[];
+  variants: ProductVariant[];
+  warranty: number;
+  warrantyMonths: number;
+  tags: string[];
+  rating: number;
+  reviewCount: number;
+  soldCount: number;
+  featured: boolean;
+  trending: boolean;
+  isActive: boolean;
 }
-
-// Interface cho từng item trong giỏ hàng
 export interface CartItem {
-  _id?: string; // Mongoose tự sinh ID cho sub-document trong mảng items
-  product: string; // ObjectId dưới dạng string (hoặc IProduct nếu đã populate)
+  _id?: string;
+  product: Product | null;
   sku: string;
   quantity: number;
 }
-
-// Interface đầy đủ cho Giỏ hàng
 export interface Cart {
-  _id: string;
-  user: string; // ObjectId dưới dạng string (hoặc IUser nếu đã populate)
   items: CartItem[];
-  createdAt?: string;
-  updatedAt?: string;
 }

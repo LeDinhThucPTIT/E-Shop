@@ -48,6 +48,13 @@ router.get(
   orderController.getAllOrdersAdmin,
 );
 
+router.get(
+  "/admin/stats",
+  authMiddleware.verifyToken,
+  authMiddleware.isAdmin,
+  orderController.stats,
+);
+
 // Admin xem chi tiết 1 đơn hàng (Bằng ID MongoDB)
 // Gọi qua: GET /api/orders/admin/:id
 router.get(

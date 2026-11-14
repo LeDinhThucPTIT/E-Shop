@@ -12,19 +12,25 @@ import { useUIStore } from "../../stores/useUIStore";
 export default function ProductCard({ product }: { product: Product }) {
   const { has: inWishlist, toggle: toggleWishlist } = useWishlistStore();
   const { addItem } = useCartStore();
-  const { has: inCompare, add: addCompare, remove: removeCompare } = useCompareStore();
+  const {
+    has: inCompare,
+    add: addCompare,
+    remove: removeCompare,
+  } = useCompareStore();
   const { showToast } = useUIStore();
 
   const productId = product.id || product._id;
-  const brandName = typeof product.brand === "string" ? product.brand : product.brand?.name || "";
+  const brandName = typeof product.brand === "string" ? product.brand : "";
   const image = product.images?.[0] || product.thumbnail || "";
   const price = product.discountPrice ?? product.price ?? 0;
-  const originalPrice = product.originalPrice ?? (product.discountPrice ? product.price : undefined);
-  const discount = product.discount ?? (
-    originalPrice && price < originalPrice
+  const originalPrice =
+    product.originalPrice ??
+    (product.discountPrice ? product.price : undefined);
+  const discount =
+    product.discount ??
+    (originalPrice && price < originalPrice
       ? Math.round(((originalPrice - price) / originalPrice) * 100)
-      : 0
-  );
+      : 0);
   const stock = product.stock ?? 0;
   const isWishlisted = inWishlist(productId);
   const isComparing = inCompare(productId);
@@ -35,7 +41,7 @@ export default function ProductCard({ product }: { product: Product }) {
     toggleWishlist(productId);
     showToast(
       isWishlisted ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích",
-      isWishlisted ? "info" : "success"
+      isWishlisted ? "info" : "success",
     );
   };
 
@@ -47,18 +53,22 @@ export default function ProductCard({ product }: { product: Product }) {
     } else {
       const ok = addCompare(productId);
       if (!ok) {
-        showToast(`Chỉ có thể so sánh tối đa ${MAX_COMPARE} sản phẩm`, "warning");
+        showToast(
+          `Chỉ có thể so sánh tối đa ${MAX_COMPARE} sản phẩm`,
+          "warning",
+        );
       } else {
         showToast("Đã thêm vào so sánh", "success");
       }
     }
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (outOfStock) return;
-    addItem(productId, 1);
-    showToast("Đã thêm vào giỏ hàng", "success");
+    const sku = product.variants[0]?.sku || product.sku;
+    if (await addItem(productId, sku, 1))
+      showToast("Đã thêm vào giỏ hàng", "success");
   };
 
   return (
@@ -75,16 +85,23 @@ export default function ProductCard({ product }: { product: Product }) {
         />
         <div className="absolute left-2.5 top-2.5 flex flex-col gap-1.5">
           {discount > 0 && <Badge variant="gradient-error">-{discount}%</Badge>}
-          {product.trending && <Badge variant="gradient-accent">Xu hướng</Badge>}
+          {product.trending && (
+            <Badge variant="gradient-accent">Xu hướng</Badge>
+          )}
           {outOfStock && <Badge variant="default">Hết hàng</Badge>}
         </div>
         <button
           onClick={handleWishlist}
-          aria-label={isWishlisted ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích"}
+          aria-label={
+            isWishlisted ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích"
+          }
           aria-pressed={isWishlisted}
           className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-slate-500 shadow-sm transition-all duration-300 hover:text-rose-500 hover:shadow-md hover:shadow-rose-200/50"
         >
-          <Heart size={15} className={isWishlisted ? "fill-error-500 text-error-500" : ""} />
+          <Heart
+            size={15}
+            className={isWishlisted ? "fill-error-500 text-error-500" : ""}
+          />
         </button>
         <button
           onClick={handleCompare}
@@ -105,9 +122,15 @@ export default function ProductCard({ product }: { product: Product }) {
         <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-ink-900">
           {product.name}
         </h3>
-        <Rating value={product.rating || 0} count={product.reviewCount} size={12} />
+        <Rating
+          value={product.rating || 0}
+          count={product.reviewCount}
+          size={12}
+        />
         <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-base font-bold text-ink-900">{formatVND(price)}</span>
+          <span className="text-base font-bold text-ink-900">
+            {formatVND(price)}
+          </span>
           {originalPrice && (
             <span className="text-xs text-slate-400 line-through">
               {formatVND(originalPrice)}

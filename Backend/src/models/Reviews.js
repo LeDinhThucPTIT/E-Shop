@@ -1,22 +1,19 @@
 const mongoose = require("mongoose");
-
-const orderSchema = new mongoose.Schema({
-  _id: ObjectId,
-
-  user: ObjectId,
-
-  product: ObjectId,
-
-  rating: Number,
-
-  comment: String,
-
-  images: [String],
-
-  createdAt: Date,
-
-  updatedAt: Date,
-});
-
-const Review = mongoose.model("Review", orderSchema);
-module.exports = Review;
+const schema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+      index: true,
+    },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    title: { type: String, default: "" },
+    comment: { type: String, default: "" },
+    images: [String],
+    verified: { type: Boolean, default: false },
+  },
+  { timestamps: true },
+);
+module.exports = mongoose.model("Review", schema);

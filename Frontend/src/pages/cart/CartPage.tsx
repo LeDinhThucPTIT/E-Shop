@@ -3,15 +3,37 @@ import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
 import Container from "../../components/ui/Container";
 import Button from "../../components/ui/Button";
 import EmptyState from "../../components/ui/EmptyState";
-import { useCartStore } from "../../stores/useCartStore";
-import { getProductById } from "../../data/products";
+import { itemPrice, itemStock, useCartStore } from "../../stores/useCartStore";
 import { formatVND } from "../../utils/format";
 import { useUIStore } from "../../stores/useUIStore";
 
 export default function CartPage() {
   const navigate = useNavigate();
-  const items = useCartStore((state) => state.items);
   const { showToast } = useUIStore();
+  const {
+    items,
+    clearCart,
+    removeItem,
+    updateQuantity,
+    subtotal,
+    isLoading,
+    error,
+    fetchCart,
+  } = useCartStore();
+  const sub = subtotal();
+  const discount = 0;
+  const shipping = sub > 20_000_000 ? 0 : 50_000;
+  const tax = Math.round(sub * 0.08);
+  const total = sub + shipping + tax;
+  if (isLoading && !items.length)
+    return <Container className="py-16">Đang tải giỏ hàng...</Container>;
+  if (error && !items.length)
+    return (
+      <Container className="py-16">
+        <p role="alert">{error}</p>
+        <Button onClick={() => void fetchCart()}>Thử lại</Button>
+      </Container>
+    );
 
   if (items.length === 0) {
     return (
@@ -26,7 +48,6 @@ export default function CartPage() {
       </Container>
     );
   }
-  const clearCart = useCartStore((state) => state.clearCart);
   return (
     <Container className="py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -34,8 +55,9 @@ export default function CartPage() {
           Giỏ hàng ({items.length})
         </h1>
         <button
-          onClick={() => {
-            clearCart();
+          disabled={isLoading}
+          onClick={async () => {
+            if (!(await clearCart())) return;
             showToast("Đã xóa toàn bộ giỏ hàng", "info");
           }}
           className="text-sm font-medium text-slate-500 hover:text-error-500"
@@ -47,10 +69,21 @@ export default function CartPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
         <div className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white shadow-sm">
           {items.map((item) => {
-            const product = getProductById(item.product._id);
-            if (!product) return null;
+            const product = item.product;
+            if (!product)
+              return (
+                <div key={item._id || item.sku} className="p-4">
+                  <p>Sản phẩm không còn tồn tại ({item.sku})</p>
+                  <button onClick={() => void clearCart()}>
+                    Xóa giỏ hàng để tiếp tục
+                  </button>
+                </div>
+              );
             return (
-              <div key={item.product._id} className="flex gap-4 p-4">
+              <div
+                key={`${product._id}:${item.sku}`}
+                className="flex gap-4 p-4"
+              >
                 <Link to={`/products/${product.slug}`} className="shrink-0">
                   <img
                     src={product.images[0]}
@@ -68,11 +101,12 @@ export default function CartPage() {
                         {product.name}
                       </Link>
                       <p className="mt-1 text-xs text-slate-400">
-                        {product.brand || ""}
+                        {product.brand} • {item.sku}
                       </p>
                     </div>
                     <button
-                      onClick={() => removeItem(item.productId)}
+                      disabled={isLoading}
+                      onClick={() => void removeItem(product._id, item.sku)}
                       aria-label="Xóa sản phẩm"
                       className="h-fit text-slate-400 hover:text-error-500"
                     >
@@ -82,7 +116,14 @@ export default function CartPage() {
                   <div className="flex items-end justify-between">
                     <div className="flex items-center rounded-md border border-slate-300">
                       <button
-                        onClick={() => decrement(item.productId)}
+                        onClick={() =>
+                          updateQuantity(
+                            product._id,
+                            item.sku,
+                            item.quantity - 1,
+                          )
+                        }
+                        disabled={isLoading}
                         aria-label="Giảm số lượng"
                         className="flex h-8 w-8 items-center justify-center text-slate-500 hover:text-ink-900"
                       >
@@ -92,16 +133,22 @@ export default function CartPage() {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => increment(item.productId)}
+                        onClick={() =>
+                          updateQuantity(
+                            product._id,
+                            item.sku,
+                            item.quantity + 1,
+                          )
+                        }
                         aria-label="Tăng số lượng"
-                        disabled={item.quantity >= product.stock}
+                        disabled={isLoading || item.quantity >= itemStock(item)}
                         className="flex h-8 w-8 items-center justify-center text-slate-500 hover:text-ink-900 disabled:opacity-30"
                       >
                         <Plus size={12} />
                       </button>
                     </div>
                     <span className="text-sm font-bold text-ink-900 sm:text-base">
-                      {formatVND(product.price * item.quantity)}
+                      {formatVND(itemPrice(item) * item.quantity)}
                     </span>
                   </div>
                 </div>
@@ -145,6 +192,7 @@ export default function CartPage() {
               className="mt-5"
               icon={<ArrowRight size={17} />}
               style={{ flexDirection: "row-reverse" }}
+              disabled={isLoading || items.some((i) => !i.product)}
               onClick={() => navigate("/checkout")}
             >
               Tiến hành thanh toán

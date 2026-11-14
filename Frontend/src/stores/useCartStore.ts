@@ -1,123 +1,95 @@
 import { create } from "zustand";
 import cartApi from "../services/cartApi";
-
-// 1. Cập nhật lại Type khớp với dữ liệu từ MongoDB (đã populate)
-export interface CartItem {
-  product: {
-    _id: string;
-    name: string;
-    price: number;
-    image: string;
-    slug: string;
-  };
-  sku: string;
-  quantity: number;
-  _id?: string;
-}
-
-// 2. Định nghĩa bản hợp đồng (Interface) cho Store
+import type { CartItem, Cart } from "../types";
+export type { CartItem } from "../types";
+import { errorMessage } from "../services/axiosClient";
+import { useUIStore } from "./useUIStore";
+let queue: Promise<unknown> = Promise.resolve();
+let generation = 0;
 interface CartState {
   items: CartItem[];
   isLoading: boolean;
-
-  // Các action tương tác với API
+  error: string;
   fetchCart: () => Promise<void>;
-  addItem: (productId: string, sku: string, quantity?: number) => Promise<void>;
+  addItem: (
+    productId: string,
+    sku: string,
+    quantity?: number,
+  ) => Promise<boolean>;
   updateQuantity: (
     productId: string,
     sku: string,
     quantity: number,
-  ) => Promise<void>;
-  removeItem: (productId: string, sku: string) => Promise<void>;
+  ) => Promise<boolean>;
+  removeItem: (productId: string, sku: string) => Promise<boolean>;
+  clearCart: () => Promise<boolean>;
   clearCartLocal: () => void;
-  clearCart: () => Promise<void>;
-
-  // Các hàm tính toán nhanh cho UI
   subtotal: () => number;
   totalItems: () => number;
 }
-
-// 3. Khởi tạo Zustand Store
-export const useCartStore = create<CartState>((set, get) => ({
-  items: [],
-  isLoading: false,
-
-  // Lấy toàn bộ giỏ hàng từ Database
-  fetchCart: async () => {
+export const itemPrice = (item: CartItem) =>
+  item.product?.variants.find((v) => v.sku === item.sku)?.price ??
+  item.product?.price ??
+  0;
+export const itemStock = (item: CartItem) =>
+  item.product?.variants.find((v) => v.sku === item.sku)?.stock ??
+  item.product?.stock ??
+  0;
+export const useCartStore = create<CartState>((set, get) => {
+  const run = (task: () => Promise<Cart>, notify = false): Promise<boolean> => {
+    const current = generation;
     set({ isLoading: true });
-    try {
-      const response = await cartApi.getCart();
-      // Đảm bảo an toàn nếu giỏ hàng trống (chưa có)
-      set({ items: response.data?.items || [], isLoading: false });
-    } catch (error) {
-      console.error("Lỗi khi tải giỏ hàng:", error);
-      set({ isLoading: false });
-    }
-  },
-
-  // Thêm sản phẩm vào giỏ
-  addItem: async (productId, sku, quantity = 1) => {
-    set({ isLoading: true });
-    try {
-      const response = await cartApi.addToCart({
-        product: productId,
-        sku,
-        quantity,
-      });
-      set({ items: response.data?.items || [], isLoading: false });
-    } catch (error) {
-      console.error("Lỗi khi thêm vào giỏ:", error);
-      set({ isLoading: false });
-    }
-  },
-
-  // Tăng/giảm số lượng
-  updateQuantity: async (productId, sku, quantity) => {
-    // Nếu giảm về 0 thì gọi luôn hàm xóa
-    if (quantity <= 0) {
-      return get().removeItem(productId, sku);
-    }
-
-    try {
-      const response = await cartApi.updateQuantity({
-        product: productId,
-        sku,
-        quantity,
-      });
-      set({ items: response.data?.items || [] });
-    } catch (error) {
-      console.error("Lỗi khi cập nhật số lượng:", error);
-    }
-  },
-
-  // Xóa 1 biến thể sản phẩm
-  removeItem: async (productId, sku) => {
-    try {
-      const response = await cartApi.removeItem(productId, sku);
-      set({ items: response.data?.items || [] });
-    } catch (error) {
-      console.error("Lỗi khi xóa sản phẩm:", error);
-    }
-  },
-  // Xóa toàn bộ giỏ hàng trên Server (API mới thêm ở bài trước)
-  clearCart: async () => {
-    try {
-      const response = await cartApi.clearCart();
-      set({ items: response.data?.items || [] });
-    } catch (error) {
-      console.error("Lỗi khi xóa toàn bộ giỏ hàng:", error);
-    }
-  },
-
-  // Chỉ dùng hàm này để dọn dẹp bộ nhớ UI khi người dùng bấm Đăng xuất
-  clearCartLocal: () => set({ items: [] }),
-
-  // Tính tổng số lượng hiển thị trên icon giỏ hàng (Góc phải màn hình)
-  totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
-
-  // Tính tổng tiền hiển thị (Dựa vào giá tiền chuẩn xác từ Backend gửi về)
-  subtotal: () =>
-    get().items.reduce((sum, item) => {
-      return sum + (item.product?.price || 0) * item.quantity;
-    }, 0),
-}));
+    const job = queue.then(async () => {
+      if (current !== generation) return false;
+      if (!localStorage.getItem("access_token")) {
+        if (notify)
+          useUIStore
+            .getState()
+            .showToast("Vui lòng đăng nhập để mua hàng", "warning");
+        set({ isLoading: false });
+        return false;
+      }
+      try {
+        const cart = await task();
+        if (current !== generation) return false;
+        set({ items: cart.items, error: "", isLoading: false });
+        return true;
+      } catch (error) {
+        if (current === generation) {
+          const message = errorMessage(error);
+          set({ error: message, isLoading: false });
+          useUIStore.getState().showToast(message, "error");
+        }
+        return false;
+      }
+    });
+    queue = job;
+    return job;
+  };
+  return {
+    items: [],
+    isLoading: false,
+    error: "",
+    fetchCart: async () => {
+      await run(() => cartApi.getCart());
+    },
+    addItem: (product, sku, quantity = 1) =>
+      run(() => cartApi.addToCart({ product, sku, quantity }), true),
+    updateQuantity: (product, sku, quantity) =>
+      quantity <= 0
+        ? get().removeItem(product, sku)
+        : run(() => cartApi.updateQuantity({ product, sku, quantity })),
+    removeItem: (product, sku) => run(() => cartApi.removeItem(product, sku)),
+    clearCart: () => run(() => cartApi.clearCart()),
+    clearCartLocal: () => {
+      generation++;
+      set({ items: [], error: "", isLoading: false });
+    },
+    subtotal: () =>
+      get().items.reduce(
+        (sum, item) => sum + itemPrice(item) * item.quantity,
+        0,
+      ),
+    totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
+  };
+});

@@ -14,10 +14,14 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
+      trim: true,
+      minlength: 1,
       required: true,
     },
     email: {
       type: String,
+      trim: true,
+      lowercase: true,
       required: true,
       unique: true,
     },
@@ -27,6 +31,7 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
+      match: /^\d{9,11}$/,
       required: true,
       unique: true,
     },

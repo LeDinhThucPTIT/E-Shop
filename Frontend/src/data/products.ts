@@ -1,9 +1,13 @@
 import type { Product } from "../types";
+import { normalizeProduct } from "../services/normalizers";
 
 const img = (seed: string, n = 1) =>
-  Array.from({ length: n }, (_, i) => `https://picsum.photos/seed/${seed}-${i}/900/900`);
+  Array.from(
+    { length: n },
+    (_, i) => `https://picsum.photos/seed/${seed}-${i}/900/900`,
+  );
 
-export const products: Product[] = [
+export const products = [
   {
     id: "p-001",
     name: "Apple MacBook Pro 14 M4 Pro",
@@ -24,7 +28,7 @@ export const products: Product[] = [
       { label: "Chip", value: "Apple M4 Pro 12-core CPU" },
       { label: "RAM", value: "24GB Unified Memory" },
       { label: "Lưu trữ", value: "512GB SSD" },
-      { label: "Màn hình", value: "14.2\" Liquid Retina XDR" },
+      { label: "Màn hình", value: '14.2" Liquid Retina XDR' },
       { label: "Pin", value: "Lên đến 18 giờ" },
       { label: "Cổng kết nối", value: "3x Thunderbolt 5, HDMI, MagSafe 3" },
     ],
@@ -54,7 +58,7 @@ export const products: Product[] = [
       { label: "GPU", value: "NVIDIA RTX 4070 8GB" },
       { label: "RAM", value: "32GB DDR5" },
       { label: "Lưu trữ", value: "1TB SSD NVMe" },
-      { label: "Màn hình", value: "16\" OLED 240Hz" },
+      { label: "Màn hình", value: '16" OLED 240Hz' },
     ],
     tags: ["gaming", "OLED", "hiệu năng cao"],
     featured: true,
@@ -80,7 +84,7 @@ export const products: Product[] = [
       { label: "GPU", value: "NVIDIA RTX 4080 12GB" },
       { label: "RAM", value: "32GB DDR5 5600MHz" },
       { label: "Lưu trữ", value: "2TB SSD" },
-      { label: "Màn hình", value: "16\" WQXGA 240Hz" },
+      { label: "Màn hình", value: '16" WQXGA 240Hz' },
     ],
     tags: ["gaming", "cao cấp", "AI"],
     trending: true,
@@ -106,7 +110,7 @@ export const products: Product[] = [
       { label: "CPU", value: "Intel Core i7-1360P" },
       { label: "RAM", value: "16GB LPDDR5" },
       { label: "Lưu trữ", value: "512GB SSD" },
-      { label: "Màn hình", value: "13.4\" FHD+ InfinityEdge" },
+      { label: "Màn hình", value: '13.4" FHD+ InfinityEdge' },
     ],
     tags: ["mỏng nhẹ", "văn phòng", "di động"],
     warrantyMonths: 12,
@@ -129,7 +133,7 @@ export const products: Product[] = [
       { label: "CPU", value: "AMD Ryzen 7 7840U" },
       { label: "RAM", value: "32GB DDR5 (nâng cấp được)" },
       { label: "Lưu trữ", value: "1TB NVMe (khe cắm mở)" },
-      { label: "Màn hình", value: "13.5\" 2256x1504" },
+      { label: "Màn hình", value: '13.5" 2256x1504' },
     ],
     tags: ["module hóa", "developer", "bền vững"],
     warrantyMonths: 12,
@@ -536,7 +540,7 @@ export const products: Product[] = [
       { label: "Chip", value: "Apple A18 Pro" },
       { label: "RAM", value: "8GB" },
       { label: "Camera", value: "48MP + Telephoto 5x" },
-      { label: "Màn hình", value: "6.3\" Super Retina XDR" },
+      { label: "Màn hình", value: '6.3" Super Retina XDR' },
     ],
     tags: ["flagship", "Apple", "AI"],
     trending: true,
@@ -607,7 +611,7 @@ export const products: Product[] = [
     tags: ["developer", "streaming", "năng suất"],
     warrantyMonths: 12,
   },
-];
+].map(normalizeProduct);
 
 export const getProductBySlug = (slug: string) =>
   products.find((p) => p.slug === slug);
