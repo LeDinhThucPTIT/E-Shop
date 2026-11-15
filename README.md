@@ -1,6 +1,6 @@
 # NEURALSTORE
 
-Ứng dụng thương mại điện tử với React/TypeScript, Express và MongoDB. Frontend gọi API thật cho xác thực, sản phẩm, danh mục, thương hiệu, giỏ hàng, checkout COD, đơn hàng, hồ sơ và quản trị.
+Ứng dụng thương mại điện tử với React/TypeScript, Express và MongoDB. Frontend gọi API thật cho xác thực, sản phẩm, danh mục, thương hiệu, giỏ hàng, checkout COD/MoMo, đơn hàng, hồ sơ và quản trị. Xem [hướng dẫn cấu hình MoMo sandbox, IPN và đối soát](docs/MOMO.md).
 
 ## Điểm nổi bật kỹ thuật
 
@@ -143,7 +143,7 @@ Test kiểm tra phân quyền, mật khẩu, giỏ hàng, giá từ database, g�
 
 ## Phạm vi còn lại
 
-- Thanh toán thực tế hiện hỗ trợ COD. VNPay/MoMo/chuyển khoản chưa tích hợp và bị vô hiệu hóa; API không mô phỏng thanh toán thành công.
+- Hỗ trợ COD và tích hợp MoMo (mặc định sandbox); MoMo cần credentials merchant và IPN public theo [hướng dẫn](docs/MOMO.md). VNPay đã ngừng tạo giao dịch mới; chuyển khoản chưa tích hợp. Hoàn tiền MoMo cần xử lý với nhà cung cấp, chưa tự động trong ứng dụng.
 - Đăng nhập Google/Facebook và khôi phục mật khẩu qua email chưa tích hợp nhà cung cấp.
 - Trợ lý mua sắm dùng bộ gợi ý theo quy tắc trên danh mục API, chưa gọi mô hình AI bên ngoài.
 - Yêu thích/so sánh, lịch sử xem và cuộc trò chuyện vẫn lưu phía trình duyệt, chưa đồng bộ nhiều thiết bị.

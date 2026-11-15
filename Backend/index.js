@@ -1,4 +1,7 @@
-require("dotenv").config();
+const path = require('node:path');
+// Local credentials override file defaults; deployment environment variables keep priority.
+require('dotenv').config({ path: path.join(__dirname, '.env.local') });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const mongoose = require("mongoose");
 const start = async () => {
   if (
@@ -16,15 +19,18 @@ const start = async () => {
     );
   }
   await Promise.all(
-    ["Users", "Products", "Cart", "Orders", "Categories", "Brands"].map(
+    ["Users", "Products", "Cart", "Orders", "Categories", "Brands", "PaymentAttempt"].map(
       (name) => require(`./src/models/${name}`).init(),
     ),
   );
   const server = require("./app").listen(process.env.PORT || 5000, () =>
     console.log("API ready"),
   );
-  const stop = () =>
+  const stopWorker = require('./src/services/paymentService').startWorker();
+  const stop = () => {
+    stopWorker();
     server.close(() => mongoose.disconnect().then(() => process.exit(0)));
+  };
   process.on("SIGTERM", stop);
   process.on("SIGINT", stop);
 };

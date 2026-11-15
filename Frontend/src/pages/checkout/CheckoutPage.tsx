@@ -19,6 +19,7 @@ import EmptyState from "../../components/ui/EmptyState";
 import { itemPrice, useCartStore } from "../../stores/useCartStore";
 import { useOrdersStore } from "../../stores/useOrdersStore";
 import { errorMessage } from "../../services/axiosClient";
+import { paymentApi } from '../../services/paymentApi';
 import { formatVND } from "../../utils/format";
 import type { PaymentMethod } from "../../types";
 import { useUIStore } from "../../stores/useUIStore";
@@ -36,12 +37,6 @@ const paymentOptions: {
     label: "Thanh toán khi nhận hàng",
     desc: "Tiền mặt (COD)",
     icon: Wallet,
-  },
-  {
-    value: "vnpay",
-    label: "VNPay",
-    desc: "Thanh toán qua ví VNPay",
-    icon: QrCode,
   },
   {
     value: "momo",
@@ -170,6 +165,16 @@ export default function CheckoutPage() {
       setPaymentState("success");
       sessionStorage.removeItem("checkout-intent");
       await fetchCart();
+      if (paymentMethod === 'momo') {
+        try {
+          const payment = await paymentApi.create(order._id);
+          window.location.assign(payment.paymentUrl);
+        } catch (error) {
+          showToast(errorMessage(error), 'error');
+          navigate(`/orders/${encodeURIComponent(order.id)}`);
+        }
+        return;
+      }
       showToast("Đặt hàng thành công!", "success");
       navigate("/checkout/success", { state: { orderId: order.id } });
     } catch (error) {
@@ -354,6 +359,7 @@ export default function CheckoutPage() {
                   >
                     <input
                       type="radio"
+                      disabled={!['cod', 'momo'].includes(opt.value)}
                       checked={paymentMethod === opt.value}
                       onChange={() => setPaymentMethod(opt.value)}
                       className="h-4 w-4 text-accent-500"
@@ -362,7 +368,7 @@ export default function CheckoutPage() {
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-ink-900">
                         {opt.label}
-                        {opt.value !== "cod" ? " (sắp có)" : ""}
+                        {!['cod', 'momo'].includes(opt.value) ? " (chưa hỗ trợ)" : ""}
                       </p>
                       <p className="text-xs text-slate-500">{opt.desc}</p>
                     </div>
@@ -371,7 +377,7 @@ export default function CheckoutPage() {
               </div>
               <p className="mt-4 text-xs text-slate-400">
                 Đơn hàng được lưu trên hệ thống. Hiện hỗ trợ thanh toán khi nhận
-                hàng (COD).
+                hàng (COD) và MoMo.
               </p>
             </div>
           )}

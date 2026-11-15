@@ -60,8 +60,9 @@ const createOrder = async (userId, data, key) => {
   };
   const existing = await Order.findOne({ user: userId, idempotencyKey: key });
   if (existing) return replay(existing);
-  if (data.paymentMethod !== "cod")
-    throw fail(400, "Hiện chỉ hỗ trợ thanh toán khi nhận hàng (COD)");
+  if (!["cod", "momo"].includes(data.paymentMethod))
+    throw fail(400, "Hiện hỗ trợ thanh toán COD và MoMo");
+  if (data.paymentMethod === "momo") require('./momoGateway').config();
   if (!["standard", "express"].includes(data.shippingMethod))
     throw fail(400, "Phương thức vận chuyển không hợp lệ");
   const address = data.shippingAddress;
@@ -149,6 +150,7 @@ const createOrder = async (userId, data, key) => {
             ? 0
             : 50000;
       const tax = Math.round(subtotal * 0.08);
+      if (data.paymentMethod === 'momo') require('./momoGateway').validateAmount(subtotal + shippingFee + tax);
       [result] = await Order.create(
         [
           {
@@ -159,7 +161,8 @@ const createOrder = async (userId, data, key) => {
             items,
             shippingAddress: address,
             shippingMethod: data.shippingMethod,
-            paymentMethod: "cod",
+            paymentMethod: data.paymentMethod,
+            paymentExpiresAt: data.paymentMethod === 'momo' ? new Date(Date.now() + 15 * 60000) : undefined,
             subtotal,
             shippingFee,
             tax,
@@ -247,12 +250,19 @@ const changeStatus = async (id, status, userId, reason = "") => {
     )
       throw fail(409, "Không thể chuyển trạng thái đơn hàng");
     if (status === "cancelled") {
+      if (order.paymentMethod !== 'cod') {
+        const unresolved = await require('../models/PaymentAttempt').exists({ order: order._id, status: { $in: ['pending', 'review', 'paid'] } }).session(session);
+        if (order.paymentStatus === 'paid' || unresolved)
+          throw fail(409, 'Giao dịch online cần được đối soát hoặc hoàn tiền trước khi hủy đơn');
+      }
       if (typeof reason !== "string" || !reason.trim())
         throw fail(400, "Vui lòng nhập lý do hủy");
       await restoreStock(order, session);
       order.cancelReason = reason;
       order.cancelledAt = new Date();
     }
+    if (['confirmed', 'shipping', 'delivered'].includes(status) && order.paymentMethod !== 'cod' && (order.paymentStatus !== 'paid' || order.paymentNeedsReview))
+      throw fail(409, 'Đơn online chưa thanh toán hoặc cần đối soát');
     if (status === "delivered" && order.paymentMethod === "cod") {
       order.paymentStatus = "paid";
       order.paidAt = new Date();

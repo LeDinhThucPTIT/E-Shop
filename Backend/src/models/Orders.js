@@ -73,6 +73,9 @@ const orderSchema = new mongoose.Schema(
     },
     transactionId: { type: String }, // LƯU Ý: Mã giao dịch trả về từ VNPay/MoMo để sau này đối soát/hoàn tiền
     paidAt: { type: Date }, // Thời điểm thanh toán thành công
+    paymentExpiresAt: Date,
+    paymentRevision: { type: Number, default: 0 },
+    paymentNeedsReview: { type: Boolean, default: false },
 
     // --- 5. VẬN CHUYỂN (SHIPPING) ---
     shippingProvider: { type: String }, // Đơn vị vận chuyển (VD: "GHTK", "Viettel Post")

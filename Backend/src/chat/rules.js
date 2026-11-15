@@ -313,7 +313,7 @@ function respond(message, history, inputCatalog) {
     );
   if (/(?:thanh toan|vnpay|momo|chuyen khoan|\bcod\b)/.test(q))
     return answer(
-      "Hiện cửa hàng hỗ trợ thanh toán khi nhận hàng (COD). VNPay, MoMo và chuyển khoản chưa được kích hoạt. Bạn có thể đặt hàng từ giỏ hàng.",
+      "Cửa hàng hỗ trợ thanh toán khi nhận hàng (COD) và MoMo khi được cấu hình. VNPay và chuyển khoản chưa được kích hoạt. Bạn có thể đặt hàng từ giỏ hàng và xem trạng thái thanh toán trong chi tiết đơn.",
     );
   if (/(?:don hang|huy don|kiem tra don)/.test(q))
     return answer(

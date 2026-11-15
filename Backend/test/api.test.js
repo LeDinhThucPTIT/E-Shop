@@ -30,7 +30,7 @@ async function request(method, url, body, token, key) {
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  return { status: response.status, body: await response.json() };
+  return { status: response.status, body: response.status === 204 ? null : await response.json() };
 }
 const address = {
   name: "Test Recipient",
@@ -150,6 +150,7 @@ before(
       "Cart",
       "Brands",
       "Categories",
+      "PaymentAttempt",
     ])
       await require(`../src/models/${name}`).init();
     server = require("../app").listen(0, "127.0.0.1");
@@ -239,6 +240,147 @@ after(async () => {
       retryDelay: 200,
     });
 });
+test('MoMo checkout validates IPN, idempotency, timeouts, retries, expiry and reconciliation', async () => {
+  const gateway = require('../src/services/momoGateway');
+  const Attempt = require('../src/models/PaymentAttempt');
+  const Order = require('../src/models/Orders');
+  const Product = require('../src/models/Products');
+  const { createHmac } = require('node:crypto');
+  const env = { MOMO_PARTNER_CODE: 'MOMO_TEST', MOMO_ACCESS_KEY: 'test-access', MOMO_SECRET_KEY: 'integration-test-secret', MOMO_REDIRECT_URL: 'http://localhost:5173/checkout/payment-result', MOMO_IPN_URL: 'https://shop.example/api/payments/momo/ipn', MOMO_API_BASE_URL: 'https://test-payment.momo.vn/v2/gateway/api' };
+  const savedEnv = Object.fromEntries(Object.keys(env).map(k => [k, process.env[k]]));
+  Object.assign(process.env, env);
+  const originalFetch = global.fetch;
+  let createCalls = 0;
+  let createMode = 'ok';
+  let queryCode = 1000;
+  global.fetch = async (url, options) => {
+    if (!String(url).startsWith(env.MOMO_API_BASE_URL)) return originalFetch(url, options);
+    const body = JSON.parse(options.body);
+    if (String(url).endsWith('/query')) {
+      const attempt = await Attempt.findOne({ reference: body.orderId });
+      return { ok: true, json: async () => ({ partnerCode: env.MOMO_PARTNER_CODE, requestId: body.requestId, orderId: body.orderId, amount: attempt.amount, resultCode: queryCode, transId: 777 }) };
+    }
+    createCalls++;
+    if (createMode === 'timeout') throw new Error('Simulated connection timeout');
+    const data = { partnerCode: env.MOMO_PARTNER_CODE, requestId: body.requestId, orderId: body.orderId, amount: body.amount, resultCode: 0, responseTime: Date.now(), message: 'Successful', payUrl: `https://test-payment.momo.vn/v2/gateway/pay?orderId=${body.orderId}` };
+    const raw = `accessKey=${env.MOMO_ACCESS_KEY}&amount=${data.amount}&message=${data.message}&orderId=${data.orderId}&partnerCode=${data.partnerCode}&payUrl=${data.payUrl}&requestId=${data.requestId}&responseTime=${data.responseTime}&resultCode=${data.resultCode}`;
+    data.signature = createHmac('sha256', env.MOMO_SECRET_KEY).update(raw).digest('hex');
+    return { ok: true, json: async () => data };
+  };
+  const p = await Product.create({ name: 'MoMo test', slug: 'momo-test', sku: 'MOMO-TEST', price: 100000, stock: 20, images: ['/favicon.svg'] });
+  const place = async key => {
+    const response = await request('POST', '/orders', { ...input(p._id, p.sku), paymentMethod: 'momo' }, userToken, key);
+    assert.equal(response.status, 201);
+    return response.body.data;
+  };
+  const notify = async (attempt, changes = {}, invalidSignature = false) => {
+    const params = { partnerCode: env.MOMO_PARTNER_CODE, orderId: attempt.reference, requestId: attempt.requestId, amount: attempt.amount, resultCode: 0, transId: 123456, orderInfo: `Thanh toan ${attempt.reference}`, orderType: 'momo_wallet', payType: 'qr', responseTime: Date.now(), extraData: '', message: 'Successful', ...changes };
+    const raw = `accessKey=${env.MOMO_ACCESS_KEY}&amount=${params.amount}&extraData=${params.extraData}&message=${params.message}&orderId=${params.orderId}&orderInfo=${params.orderInfo}&orderType=${params.orderType}&partnerCode=${params.partnerCode}&payType=${params.payType}&requestId=${params.requestId}&responseTime=${params.responseTime}&resultCode=${params.resultCode}&transId=${params.transId}`;
+    params.signature = invalidSignature ? 'bad' : createHmac('sha256', env.MOMO_SECRET_KEY).update(raw).digest('hex');
+    return request('POST', '/payments/momo/ipn', params);
+  };
+  const initiate = id => request('POST', '/payments/momo/create', { orderId: id }, userToken);
+  try {
+    delete process.env.MOMO_SECRET_KEY;
+    assert.equal((await request('POST', '/orders', { ...input(p._id, p.sku), paymentMethod: 'momo' }, userToken, 'momo-missing-config')).status, 400);
+    process.env.MOMO_SECRET_KEY = env.MOMO_SECRET_KEY;
+    assert.equal((await Product.findById(p._id)).stock, 20);
+    assert.equal((await request('POST', '/orders', { ...input(p._id, p.sku), paymentMethod: 'vnpay' }, userToken, 'disabled-vnpay')).status, 400);
+    await Product.updateOne({ _id: p._id }, { $set: { price: 50000000 } });
+    assert.equal((await request('POST', '/orders', { ...input(p._id, p.sku), paymentMethod: 'momo' }, userToken, 'momo-high-amount')).status, 400);
+    assert.equal((await Product.findById(p._id)).stock, 20);
+    await Product.updateOne({ _id: p._id }, { $set: { price: 100000 } });
+
+    const order = await place('momo-order-1');
+    assert.equal((await place('momo-order-1'))._id, order._id);
+    assert.equal((await Product.findById(p._id)).stock, 19);
+    assert.equal((await request('POST', '/payments/momo/create', { orderId: order._id }, otherToken)).status, 404);
+    const creates = await Promise.all([1, 2].map(() => initiate(order._id)));
+    assert.ok(creates.some(res => res.status === 200));
+    for (const res of creates) assert.ok([200, 409].includes(res.status));
+    assert.equal(createCalls, 1);
+    const cached = await initiate(order._id);
+    assert.equal(cached.status, 200);
+    assert.equal(createCalls, 1);
+    assert.equal(await Attempt.countDocuments({ order: order._id }), 1);
+    const attempt = await Attempt.findOne({ order: order._id });
+    assert.equal((await request('GET', `/payments/momo/result/${attempt.reference}`, undefined, otherToken)).status, 404);
+    assert.equal((await notify(attempt, {}, true)).status, 400);
+    assert.equal((await notify(attempt, { amount: 1 })).status, 400);
+    assert.equal((await notify(attempt, { partnerCode: 'WRONG' })).status, 400);
+    assert.equal((await notify(attempt, { requestId: 'WRONG' })).status, 400);
+    assert.equal((await Order.findById(order._id)).paymentStatus, 'pending');
+    assert.equal((await request('PUT', `/orders/admin/${order._id}/status`, { orderStatus: 'confirmed' }, adminToken)).status, 409);
+    assert.equal((await request('PUT', `/orders/my-orders/${order._id}/cancel`, { cancelReason: 'cancel' }, userToken)).status, 409);
+    for (const resultCode of [1000, 7000, 7002, 9000, 42, 9999]) {
+      assert.equal((await notify(attempt, { resultCode })).status, 204);
+      assert.equal((await Order.findById(order._id)).paymentStatus, 'pending');
+    }
+    assert.equal((await notify(attempt)).status, 204);
+    assert.equal((await notify(attempt)).status, 204);
+    assert.equal((await Order.findById(order._id)).paymentStatus, 'paid');
+    assert.equal((await Product.findById(p._id)).stock, 19);
+    assert.equal((await initiate(order._id)).status, 409);
+    assert.equal((await request('GET', `/payments/momo/result/${attempt.reference}`, undefined, userToken)).body.data.paymentStatus, 'paid');
+    assert.equal((await request('PUT', `/orders/admin/${order._id}/status`, { orderStatus: 'confirmed' }, adminToken)).status, 200);
+
+    const retryOrder = await place('momo-order-retry');
+    await initiate(retryOrder._id);
+    const failed = await Attempt.findOne({ order: retryOrder._id });
+    assert.equal((await notify(failed, { resultCode: 1006 })).status, 204);
+    assert.equal((await initiate(retryOrder._id)).status, 200);
+    const next = await Attempt.findOne({ order: retryOrder._id, status: 'pending' });
+    assert.notEqual(next.reference, failed.reference);
+    await notify(failed, { transId: 444 });
+    await notify(next, { transId: 555 });
+    assert.equal((await Order.findById(retryOrder._id)).paymentNeedsReview, true);
+    assert.equal((await Attempt.findById(next._id)).status, 'review');
+    assert.equal((await request('PUT', `/orders/admin/${retryOrder._id}/status`, { orderStatus: 'confirmed' }, adminToken)).status, 409);
+
+    const expiring = await place('momo-order-expiry');
+    await Order.updateOne({ _id: expiring._id }, { $set: { paymentExpiresAt: new Date(0) } });
+    await require('../src/services/paymentService').sweep();
+    await require('../src/services/paymentService').sweep();
+    assert.equal((await Order.findById(expiring._id)).orderStatus, 'cancelled');
+    assert.equal((await Product.findById(p._id)).stock, 18);
+
+    const unknown = await place('momo-order-unknown');
+    createMode = 'timeout';
+    assert.equal((await initiate(unknown._id)).status, 400);
+    const unresolved = await Attempt.findOne({ order: unknown._id });
+    createMode = 'ok';
+    assert.equal((await initiate(unknown._id)).status, 200);
+    assert.equal(await Attempt.countDocuments({ order: unknown._id }), 1);
+    assert.equal((await Attempt.findById(unresolved._id)).requestId, unresolved.requestId);
+    await Order.updateOne({ _id: unknown._id }, { $set: { paymentExpiresAt: new Date(0) } });
+    await Attempt.collection.updateOne({ _id: unresolved._id }, { $set: { createdAt: new Date(0) } });
+    await require('../src/services/paymentService').sweep();
+    assert.equal((await Order.findById(unknown._id)).orderStatus, 'pending');
+    queryCode = 1005;
+    await Attempt.updateOne({ _id: unresolved._id }, { $unset: { lastCheckedAt: 1 } });
+    await require('../src/services/paymentService').sweep();
+    assert.equal((await Order.findById(unknown._id)).orderStatus, 'cancelled');
+    await notify(unresolved, { transId: 999 });
+    assert.equal((await Attempt.findById(unresolved._id)).status, 'review');
+    assert.equal((await Order.findById(unknown._id)).orderStatus, 'cancelled');
+    assert.equal((await Product.findById(p._id)).stock, 18);
+
+    const queried = await place('momo-query-success');
+    await initiate(queried._id);
+    const queryAttempt = await Attempt.findOne({ order: queried._id });
+    await Attempt.collection.updateOne({ _id: queryAttempt._id }, { $set: { createdAt: new Date(0) } });
+    queryCode = 0;
+    await require('../src/services/paymentService').sweep();
+    assert.equal((await Order.findById(queried._id)).paymentStatus, 'paid');
+  } finally {
+    global.fetch = originalFetch;
+    await Attempt.deleteMany({ order: { $in: (await Order.find({ 'items.product': p._id }).select('_id')).map(o => o._id) } });
+    await Order.deleteMany({ 'items.product': p._id });
+    await Product.deleteOne({ _id: p._id });
+    for (const [k, v] of Object.entries(savedEnv)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+});
+
 test("authentication, ownership and role escalation are enforced", async () => {
   assert.equal((await request("GET", "/cart")).status, 401);
   assert.equal(
@@ -658,7 +800,7 @@ test("invalid bodies, IDs, payments, addresses and filters return client errors"
       await request(
         "POST",
         "/orders",
-        { ...input(product._id, "LAPTOP"), paymentMethod: "vnpay" },
+        { ...input(product._id, "LAPTOP"), paymentMethod: "unsupported" },
         userToken,
         "payment-test",
       )

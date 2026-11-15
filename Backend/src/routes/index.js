@@ -14,6 +14,7 @@ router.use("/products", productRouter);
 router.use("/users", userRouter);
 router.use("/cart", cartRouter);
 router.use("/orders", orderRouter);
+router.use("/payments", require('./paymentRouter'));
 router.use("/chat", require("./chatRouter"));
 
 module.exports = router;

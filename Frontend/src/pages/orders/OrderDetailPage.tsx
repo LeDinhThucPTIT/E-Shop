@@ -8,6 +8,8 @@ import EmptyState from "../../components/ui/EmptyState";
 import { useOrdersStore } from "../../stores/useOrdersStore";
 import { formatVND, formatDate, formatDateTime } from "../../utils/format";
 import { useUIStore } from "../../stores/useUIStore";
+import { paymentApi } from '../../services/paymentApi';
+import { errorMessage } from '../../services/axiosClient';
 
 const PAYMENT_LABELS: Record<string, string> = {
   cod: "Thanh toán khi nhận hàng",
@@ -26,6 +28,7 @@ export default function OrderDetailPage() {
   const { getOrder, cancelOrder, fetchOrder, isLoading, error } =
     useOrdersStore();
   const [cancelling, setCancelling] = useState(false);
+  const [paying, setPaying] = useState(false);
   useEffect(() => {
     if (id) void fetchOrder(id);
   }, [id, fetchOrder]);
@@ -86,6 +89,19 @@ export default function OrderDetailPage() {
           </Button>
         )}
       </div>
+
+      {order.paymentMethod === 'momo' && <div className="mt-6 rounded-xl border bg-white p-5">
+        <p className="mb-3 font-medium" role="status">{order.paymentNeedsReview ? 'Giao dịch cần đối soát. Vui lòng liên hệ cửa hàng, không thanh toán thêm.' : order.paymentStatus === 'paid' ? 'Đã thanh toán qua MoMo' : order.paymentStatus === 'failed' ? 'Thanh toán chưa thành công' : 'Chờ thanh toán / xác nhận từ MoMo'}</p>
+        {order.paymentExpiresAt && <p className="mb-3 text-sm text-slate-500">Hạn thanh toán: {formatDateTime(order.paymentExpiresAt)}</p>}
+        <div className="flex gap-3">
+          {order.status === 'pending' && order.paymentStatus !== 'paid' && !order.paymentNeedsReview && !!order.paymentExpiresAt && new Date(order.paymentExpiresAt).getTime() > Date.now() && <Button loading={paying} onClick={async () => {
+            setPaying(true);
+            try { const payment = await paymentApi.create(order._id); window.location.assign(payment.paymentUrl); }
+            catch (err) { showToast(errorMessage(err), 'error'); setPaying(false); }
+          }}>Thanh toán qua MoMo</Button>}
+          <Button variant="outline" onClick={() => id && void fetchOrder(id)}>Cập nhật trạng thái</Button>
+        </div>
+      </div>}
 
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
         <div>

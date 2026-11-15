@@ -98,6 +98,9 @@ export function normalizeOrder(raw: Record<string, any>): Order {
     tax: raw.tax || 0,
     total: raw.totalPrice,
     paymentMethod: raw.paymentMethod,
+    paymentStatus: raw.paymentStatus || 'pending',
+    paymentExpiresAt: raw.paymentExpiresAt,
+    paymentNeedsReview: !!raw.paymentNeedsReview,
     shippingMethod: raw.shippingMethod || "standard",
     address: {
       fullName: address.name,

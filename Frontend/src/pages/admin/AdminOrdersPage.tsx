@@ -82,6 +82,7 @@ export default function AdminOrdersPage() {
                 "Ngày đặt",
                 "Tổng tiền",
                 "Trạng thái",
+                "Thanh toán",
                 "Thao tác",
               ].map((s) => (
                 <th key={s} className="p-3">
@@ -106,6 +107,7 @@ export default function AdminOrdersPage() {
                   <td>{formatDate(o.createdAt)}</td>
                   <td>{formatVND(o.total)}</td>
                   <td>{STATUS_LABELS[o.status] || o.status}</td>
+                  <td>{o.paymentMethod.toUpperCase()} · {o.paymentNeedsReview ? 'Cần đối soát' : ({ pending: 'Chờ thanh toán', paid: 'Đã thanh toán', failed: 'Thất bại', refunded: 'Đã hoàn tiền' }[o.paymentStatus || 'pending'])}</td>
                   <td>
                     {(transitions[o.status] || []).map((s) => (
                       <button

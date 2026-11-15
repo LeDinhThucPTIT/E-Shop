@@ -12,6 +12,7 @@ import WishlistPage from "../pages/wishlist/WishlistPage";
 import ComparePage from "../pages/compare/ComparePage";
 import CheckoutPage from "../pages/checkout/CheckoutPage";
 import OrderSuccessPage from "../pages/checkout/OrderSuccessPage";
+import PaymentResultPage from '../pages/checkout/PaymentResultPage';
 import OrdersPage from "../pages/orders/OrdersPage";
 import OrderDetailPage from "../pages/orders/OrderDetailPage";
 import ProfilePage from "../pages/profile/ProfilePage";
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
           { path: "cart", element: <CartPage /> },
           { path: "checkout", element: <CheckoutPage /> },
           { path: "checkout/success", element: <OrderSuccessPage /> },
+          { path: "checkout/payment-result", element: <PaymentResultPage /> },
           { path: "orders", element: <OrdersPage /> },
           { path: "orders/:id", element: <OrderDetailPage /> },
           { path: "profile", element: <ProfilePage /> },

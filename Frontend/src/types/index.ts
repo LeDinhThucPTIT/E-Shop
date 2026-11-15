@@ -42,6 +42,9 @@ export interface Order {
   total: number;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
+  paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentExpiresAt?: string;
+  paymentNeedsReview?: boolean;
   shippingMethod: "standard" | "express";
   address: {
     fullName: string;
