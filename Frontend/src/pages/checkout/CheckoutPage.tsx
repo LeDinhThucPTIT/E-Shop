@@ -364,7 +364,9 @@ export default function CheckoutPage() {
                       onChange={() => setPaymentMethod(opt.value)}
                       className="h-4 w-4 text-accent-500"
                     />
-                    <opt.icon size={20} className="text-slate-500" />
+                    {opt.value === 'momo' ? (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-600 text-xs font-bold leading-tight text-white" aria-hidden="true">MoMo</span>
+                    ) : <opt.icon size={20} className="text-slate-500" />}
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-ink-900">
                         {opt.label}
@@ -375,6 +377,21 @@ export default function CheckoutPage() {
                   </label>
                 ))}
               </div>
+              {paymentMethod === 'momo' && (
+                <div className="mt-5 rounded-xl border border-pink-200 bg-pink-50 p-5">
+                  <div className="flex items-center gap-2 font-semibold text-pink-800">
+                    <QrCode size={20} /> Thanh toán an toàn qua MoMo
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-pink-900">
+                    Sau khi xác nhận đơn hàng, bạn sẽ được chuyển đến trang MoMo để quét mã QR hoặc mở ứng dụng và xác nhận thanh toán.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-pink-200 pt-4">
+                    <span className="text-sm text-pink-800">Tổng thanh toán dự kiến</span>
+                    <span className="text-xl font-bold text-pink-700">{formatVND(total)}</span>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-pink-800">Kết quả thanh toán sẽ được cập nhật trong đơn hàng sau khi MoMo xác nhận.</p>
+                </div>
+              )}
               <p className="mt-4 text-xs text-slate-400">
                 Đơn hàng được lưu trên hệ thống. Hiện hỗ trợ thanh toán khi nhận
                 hàng (COD) và MoMo.
@@ -393,9 +410,17 @@ export default function CheckoutPage() {
                     Vui lòng kiểm tra lại thông tin đơn hàng trước khi xác nhận
                     thanh toán.
                   </p>
-                  <Button size="lg" className="mt-6" onClick={processPayment}>
-                    Xác nhận đặt hàng
+                  <div className="mt-5 w-full max-w-md rounded-xl border border-slate-200 bg-slate-50 p-4 text-left text-sm">
+                    <p className="font-medium text-ink-900">{info.fullName} · {info.phone}</p>
+                    <p className="mt-1 text-slate-600">{[info.address, info.ward, info.district, info.city].filter(Boolean).join(', ')}</p>
+                    <p className="mt-3 text-slate-600">Phương thức: <span className="font-semibold text-ink-900">{paymentMethod === 'momo' ? 'Ví MoMo' : 'Thanh toán khi nhận hàng (COD)'}</span></p>
+                    <div className="mt-3 flex justify-between border-t border-slate-200 pt-3 font-semibold text-ink-900"><span>Tổng dự kiến</span><span>{formatVND(total)}</span></div>
+                  </div>
+                  {paymentMethod === 'momo' && <p className="mt-4 max-w-md text-sm leading-6 text-slate-600">Bấm nút bên dưới để tạo đơn và mở trang thanh toán MoMo. Bạn xác nhận trả tiền trên MoMo ở bước tiếp theo.</p>}
+                  <Button size="lg" className={`mt-6 ${paymentMethod === 'momo' ? 'bg-pink-600 from-pink-600 to-pink-600 hover:from-pink-700 hover:to-pink-700' : ''}`} onClick={processPayment}>
+                    {paymentMethod === 'momo' ? <><QrCode size={20} /> Đặt hàng và thanh toán MoMo</> : 'Xác nhận đặt hàng COD'}
                   </Button>
+                  <button className="mt-4 text-sm text-slate-500 underline hover:text-ink-900" onClick={() => setStep(2)}>Đổi phương thức thanh toán</button>
                 </>
               )}
               {paymentState === "processing" && (
