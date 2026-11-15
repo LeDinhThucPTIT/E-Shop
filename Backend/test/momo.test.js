@@ -75,7 +75,7 @@ test('MoMo query signs request, matches HTTPS response and retains ambiguous sta
 
 test('MoMo validates merchant configuration and wallet amount range', () => {
   delete process.env.MOMO_SECRET_KEY;
-  try { assert.throws(() => gateway.config(), { status: 400 }); }
+  try { assert.throws(() => gateway.config(), error => error.status === 400 && error.message.includes('MOMO_SECRET_KEY') && !error.message.includes('test-secret')); }
   finally { process.env.MOMO_SECRET_KEY = 'test-secret'; }
   process.env.MOMO_API_BASE_URL = 'http://evil.example/api';
   try { assert.throws(() => gateway.config(), { status: 400 }); }
@@ -83,4 +83,19 @@ test('MoMo validates merchant configuration and wallet amount range', () => {
   for (const amount of [999, 50000001, 1000.5, NaN]) assert.throws(() => gateway.validateAmount(amount), { status: 400 });
   gateway.validateAmount(1000);
   gateway.validateAmount(50000000);
+});
+
+test('startup diagnostics identify missing configuration without revealing credentials', () => {
+  const messages = [];
+  const logger = { log: text => messages.push(text), warn: text => messages.push(text) };
+  gateway.logConfiguration(logger);
+  assert.match(messages.pop(), /\[MoMo config v1\] READY:/);
+  delete process.env.MOMO_SECRET_KEY;
+  try {
+    gateway.logConfiguration(logger);
+    const message = messages.pop();
+    assert.match(message, /NOT_READY:.*MOMO_SECRET_KEY/);
+    assert.equal(message.includes('test-secret'), false);
+    assert.equal(message.includes('test-access'), false);
+  } finally { process.env.MOMO_SECRET_KEY = 'test-secret'; }
 });

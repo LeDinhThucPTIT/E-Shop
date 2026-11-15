@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env.local') });
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const mongoose = require("mongoose");
 const start = async () => {
+  require('./src/services/momoGateway').logConfiguration();
   if (
     !process.env.MONGO_URI ||
     !process.env.JWT_SECRET ||

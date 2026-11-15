@@ -5,10 +5,12 @@ function config() {
   const partnerCode = process.env.MOMO_PARTNER_CODE?.trim();
   const accessKey = process.env.MOMO_ACCESS_KEY?.trim();
   const secretKey = process.env.MOMO_SECRET_KEY?.trim();
-  const redirectUrl = process.env.MOMO_REDIRECT_URL;
-  const ipnUrl = process.env.MOMO_IPN_URL;
-  if (!partnerCode || !accessKey || !secretKey || !redirectUrl || !ipnUrl)
-    throw fail(400, 'MoMo chưa được cấu hình. Vui lòng chọn COD hoặc liên hệ cửa hàng.');
+  const redirectUrl = process.env.MOMO_REDIRECT_URL?.trim();
+  const ipnUrl = process.env.MOMO_IPN_URL?.trim();
+  const required = { MOMO_PARTNER_CODE: partnerCode, MOMO_ACCESS_KEY: accessKey, MOMO_SECRET_KEY: secretKey, MOMO_REDIRECT_URL: redirectUrl, MOMO_IPN_URL: ipnUrl };
+  const missing = Object.keys(required).filter(key => !required[key]);
+  if (missing.length)
+    throw fail(400, `MoMo chưa được cấu hình. Backend chưa nhận được: ${missing.join(', ')}. Vui lòng kiểm tra Environment và triển khai lại backend.`);
   const apiBase = (process.env.MOMO_API_BASE_URL || 'https://test-payment.momo.vn/v2/gateway/api').replace(/\/$/, '');
   try {
     if (!['https://test-payment.momo.vn/v2/gateway/api', 'https://payment.momo.vn/v2/gateway/api'].includes(apiBase)) throw new Error();
@@ -18,6 +20,15 @@ function config() {
     }
   } catch { throw fail(400, 'Cấu hình URL MoMo không hợp lệ'); }
   return { partnerCode, accessKey, secretKey, redirectUrl, ipnUrl, apiBase };
+}
+function logConfiguration(logger = console) {
+  // The fixed marker identifies deployments with diagnostics; never log credentials.
+  try {
+    config();
+    logger.log('[MoMo config v1] READY: da nhan du bien va URL hop le; chua kiem tra ket noi MoMo.');
+  } catch (error) {
+    logger.warn(`[MoMo config v1] NOT_READY: ${error.message}`);
+  }
 }
 const raw = (fields, data) => fields.map(key => `${key}=${data[key] ?? ''}`).join('&');
 const hash = (data, secret) => createHmac('sha256', secret).update(data, 'utf8').digest('hex');
@@ -81,4 +92,4 @@ async function query(payment) {
 }
 // Only payment failures, never maintenance/authentication/not-found/processing errors.
 const isFinalFailure = code => [98, 99, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1017, 1026, 4001, 4002, 4100].includes(Number(code));
-module.exports = { config, raw, hash, verify, validateAmount, create, query, integer, isFinalFailure };
+module.exports = { config, logConfiguration, raw, hash, verify, validateAmount, create, query, integer, isFinalFailure };

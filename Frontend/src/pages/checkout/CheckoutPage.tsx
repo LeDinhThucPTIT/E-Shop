@@ -77,6 +77,7 @@ export default function CheckoutPage() {
     "idle" | "processing" | "success" | "failed"
   >("idle");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [checkoutError, setCheckoutError] = useState('');
 
   if (isLoading && !items.length)
     return <Container className="py-16">Đang tải giỏ hàng...</Container>;
@@ -129,6 +130,7 @@ export default function CheckoutPage() {
       return;
     }
     submitting.current = true;
+    setCheckoutError('');
     setPaymentState("processing");
     try {
       const input = {
@@ -179,7 +181,9 @@ export default function CheckoutPage() {
       navigate("/checkout/success", { state: { orderId: order.id } });
     } catch (error) {
       setPaymentState("failed");
-      showToast(errorMessage(error), "error");
+      const message = errorMessage(error);
+      setCheckoutError(message);
+      showToast(message, "error");
     } finally {
       submitting.current = false;
     }
@@ -437,12 +441,13 @@ export default function CheckoutPage() {
                   <p className="mt-4 text-sm font-medium text-ink-900">
                     Đặt hàng thất bại
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Đã có lỗi xảy ra, vui lòng thử lại.
+                  <p className="mt-1 text-sm text-red-600" role="alert">
+                    {checkoutError || 'Đã có lỗi xảy ra, vui lòng thử lại.'}
                   </p>
                   <Button className="mt-6" onClick={processPayment}>
                     Thử lại
                   </Button>
+                  <button className="mt-4 text-sm text-slate-500 underline" onClick={() => { setPaymentState('idle'); setStep(0); }}>Kiểm tra lại thông tin đặt hàng</button>
                 </>
               )}
               {paymentState === "success" && (
