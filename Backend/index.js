@@ -1,7 +1,4 @@
-const path = require('node:path');
-// Local credentials override file defaults; deployment environment variables keep priority.
-require('dotenv').config({ path: path.join(__dirname, '.env.local') });
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('./src/config/env');
 const mongoose = require("mongoose");
 const start = async () => {
   require('./src/services/momoGateway').logConfiguration();

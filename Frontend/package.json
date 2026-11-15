@@ -1,6 +1,8 @@
 {
   "name": "neuralstore",
   "private": true,
+  "description": "React and TypeScript storefront and administration app for NEURALSTORE.",
+  "engines": { "node": ">=22.12.0" },
   "version": "0.0.0",
   "type": "module",
   "scripts": {

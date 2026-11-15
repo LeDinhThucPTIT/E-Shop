@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('../src/config/env');
 const mongoose = require("mongoose");
 const Category = require("../src/models/Categories");
 const Brand = require("../src/models/Brands");

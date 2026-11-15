@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('../src/config/env');
 const mongoose = require("mongoose");
 const User = require("../src/models/Users");
 async function main() {

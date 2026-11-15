@@ -3,7 +3,8 @@ node_modules/
 
 # File môi trường / cấu hình bảo mật
 .env
-.env.local
+.env.*
+!.env.example
 
 # Thư mục build
 dist/
@@ -17,3 +18,8 @@ build/
 
 # Local development MongoDB
 .local/
+
+# Logs and generated reports
+*.log
+coverage/
+*.tsbuildinfo

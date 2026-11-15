@@ -1,7 +1,9 @@
 {
-  "name": "backend",
+  "name": "neuralstore-api",
   "version": "1.0.0",
-  "description": "",
+  "private": true,
+  "description": "Express and MongoDB API for the NEURALSTORE e-commerce portfolio project.",
+  "engines": { "node": ">=22.12.0" },
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -13,7 +15,6 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
