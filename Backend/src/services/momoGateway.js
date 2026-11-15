@@ -50,12 +50,23 @@ function validateAmount(amount) {
   if (!Number.isSafeInteger(amount) || amount < 1000 || amount > 50000000)
     throw fail(400, 'MoMo hỗ trợ số tiền từ 1.000đ đến 50.000.000đ. Vui lòng chọn COD cho đơn này.');
 }
+const gatewayError = message => Object.assign(fail(502, message), { publicMessage: message });
+function resultDescription(code) {
+  return ({ 11: 'Merchant chưa được cấp quyền sử dụng API', 13: 'Thông tin merchant hoặc chữ ký không hợp lệ', 20: 'MoMo từ chối định dạng yêu cầu', 21: 'Số tiền không hợp lệ', 22: 'Số tiền vượt hạn mức', 40: 'RequestId đã được sử dụng; giao dịch cần đối soát', 41: 'OrderId đã tồn tại; giao dịch cần đối soát', 42: 'MoMo chưa tìm thấy giao dịch' })[code] || 'MoMo từ chối yêu cầu; cần kiểm tra kết quả giao dịch';
+}
 async function post(path, body) {
   const cfg = config();
   // No redirects: credentials must only be sent to the configured MoMo API.
   const response = await fetch(`${cfg.apiBase}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw fail(502, 'Chưa thể kết nối MoMo. Giao dịch sẽ được kiểm tra lại.');
-  return response.json();
+  let data;
+  try { data = await response.json(); }
+  catch { throw gatewayError('MoMo trả về phản hồi không phải JSON. Giao dịch vẫn chờ kiểm tra.'); }
+  if (!response.ok) {
+    const code = integer(data?.resultCode) ? Number(data.resultCode) : null;
+    console.warn('[MoMo gateway]', JSON.stringify({ operation: path, httpStatus: response.status, resultCode: code }));
+    throw gatewayError(`MoMo HTTP ${response.status}${code === null ? '' : `, mã ${code}: ${resultDescription(code)}`}. Giao dịch chưa được xác nhận.`);
+  }
+  return data;
 }
 function matches(data, payment, requestId) {
   return data && data.partnerCode === config().partnerCode && data.orderId === payment.reference && data.requestId === requestId &&
@@ -69,15 +80,19 @@ async function create(payment) {
     requestType: 'captureWallet', extraData: '', autoCapture: true, lang: 'vi' };
   body.signature = hash(raw(createFields, { ...body, accessKey: cfg.accessKey }), cfg.secretKey);
   const data = await post('create', body);
-  if (!matches(data, payment, payment.requestId)) throw fail(502, 'Phản hồi MoMo không khớp giao dịch');
+  if (!matches(data, payment, payment.requestId)) {
+    const code = integer(data?.resultCode) ? Number(data.resultCode) : null;
+    console.warn('[MoMo gateway]', JSON.stringify({ operation: 'create', resultCode: code, partnerMatches: data?.partnerCode === cfg.partnerCode, orderMatches: data?.orderId === payment.reference, requestMatches: data?.requestId === payment.requestId, amountMatches: Number(data?.amount) === payment.amount }));
+    throw gatewayError(code !== null && code !== 0 ? `MoMo mã ${code}: ${resultDescription(code)}.` : 'Phản hồi MoMo không khớp giao dịch. Giao dịch vẫn chờ đối soát.');
+  }
   // Some merchant responses omit signature; HTTPS and request correlation still apply.
   if (data.signature !== undefined && !equalHash(data.signature, hash(raw(createResponseFields, { ...data, accessKey: cfg.accessKey }), cfg.secretKey)))
-    throw fail(502, 'Chữ ký phản hồi MoMo không hợp lệ');
+    throw gatewayError('Chữ ký phản hồi MoMo không hợp lệ. Giao dịch vẫn chờ đối soát.');
   if (Number(data.resultCode) === 0) {
     let url;
-    try { url = new URL(data.payUrl); } catch { throw fail(502, 'MoMo chưa trả về đường dẫn thanh toán hợp lệ'); }
+    try { url = new URL(data.payUrl); } catch { throw gatewayError('MoMo chưa trả về đường dẫn thanh toán hợp lệ'); }
     if (url.origin !== new URL(cfg.apiBase).origin || url.username || url.password)
-      throw fail(502, 'Đường dẫn thanh toán MoMo không hợp lệ');
+      throw gatewayError('Đường dẫn thanh toán MoMo không hợp lệ');
   }
   return data;
 }

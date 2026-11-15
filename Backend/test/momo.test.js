@@ -99,3 +99,19 @@ test('startup diagnostics identify missing configuration without revealing crede
     assert.equal(message.includes('test-access'), false);
   } finally { process.env.MOMO_SECRET_KEY = 'test-secret'; }
 });
+
+test('MoMo gateway errors expose safe diagnostic codes without echoing provider payloads', async () => {
+  const originalFetch = global.fetch;
+  const originalWarn = console.warn;
+  const logs = [];
+  console.warn = (...parts) => logs.push(parts.join(' '));
+  let ok = false;
+  global.fetch = async () => ({ ok, status: 400, json: async () => ({ resultCode: 13, message: 'sensitive-provider-payload test-secret test-access' }) });
+  try {
+    await assert.rejects(gateway.create(attempt), error => error.status === 502 && error.publicMessage.includes('HTTP 400') && error.publicMessage.includes('13') && !error.publicMessage.includes('test-secret'));
+    ok = true;
+    await assert.rejects(gateway.create(attempt), error => error.status === 502 && error.publicMessage.includes('13') && !error.publicMessage.includes('test-access'));
+    assert.equal(logs.join('').includes('test-secret'), false);
+    assert.equal(logs.join('').includes('sensitive-provider-payload'), false);
+  } finally { global.fetch = originalFetch; console.warn = originalWarn; }
+});

@@ -34,7 +34,7 @@ const errorHandler = (err, req, res, next) => {
     err.code === 11000
       ? "Dữ liệu đã tồn tại"
       : status >= 500
-        ? "Không thể xử lý yêu cầu. Vui lòng thử lại."
+        ? err.publicMessage || "Không thể xử lý yêu cầu. Vui lòng thử lại."
         : err.message;
   res.status(status).json({ success: false, message });
 };
