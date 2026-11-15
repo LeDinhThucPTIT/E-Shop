@@ -2,6 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createHmac } = require('node:crypto');
 const gateway = require('../src/services/momoGateway');
+// Keep gateway fixtures independent of the native HTTPS implementation.
+require('../src/services/momoTransport').request = (...args) => global.fetch(...args);
 Object.assign(process.env, {
   MOMO_PARTNER_CODE: 'MOMO_TEST', MOMO_ACCESS_KEY: 'test-access', MOMO_SECRET_KEY: 'test-secret',
   MOMO_REDIRECT_URL: 'http://localhost:5173/checkout/payment-result',

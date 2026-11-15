@@ -250,6 +250,9 @@ test('MoMo checkout validates IPN, idempotency, timeouts, retries, expiry and re
   const savedEnv = Object.fromEntries(Object.keys(env).map(k => [k, process.env[k]]));
   Object.assign(process.env, env);
   const originalFetch = global.fetch;
+  const transport = require('../src/services/momoTransport');
+  const originalTransport = transport.request;
+  transport.request = (...args) => global.fetch(...args);
   let createCalls = 0;
   let createMode = 'ok';
   let queryCode = 1000;
@@ -374,6 +377,7 @@ test('MoMo checkout validates IPN, idempotency, timeouts, retries, expiry and re
     assert.equal((await Order.findById(queried._id)).paymentStatus, 'paid');
   } finally {
     global.fetch = originalFetch;
+    transport.request = originalTransport;
     await Attempt.deleteMany({ order: { $in: (await Order.find({ 'items.product': p._id }).select('_id')).map(o => o._id) } });
     await Order.deleteMany({ 'items.product': p._id });
     await Product.deleteOne({ _id: p._id });

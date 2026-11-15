@@ -1,5 +1,6 @@
 const { createHmac, timingSafeEqual, randomBytes } = require('node:crypto');
 const { fail } = require('../utils/http');
+const transport = require('./momoTransport');
 
 function config() {
   const partnerCode = process.env.MOMO_PARTNER_CODE?.trim();
@@ -57,7 +58,7 @@ function resultDescription(code) {
 async function post(path, body) {
   const cfg = config();
   // No redirects: credentials must only be sent to the configured MoMo API.
-  const response = await fetch(`${cfg.apiBase}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(30000) });
+  const response = await transport.request(`${cfg.apiBase}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(30000) });
   let data;
   try { data = await response.json(); }
   catch {
