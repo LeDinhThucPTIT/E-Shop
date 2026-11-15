@@ -60,7 +60,13 @@ async function post(path, body) {
   const response = await fetch(`${cfg.apiBase}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(30000) });
   let data;
   try { data = await response.json(); }
-  catch { throw gatewayError('MoMo trả về phản hồi không phải JSON. Giao dịch vẫn chờ kiểm tra.'); }
+  catch {
+    // HTML/WAF/proxy errors are not payment results. Log metadata only, never the body.
+    const contentType = (response.headers?.get('content-type') || 'unknown').split(';')[0].replace(/[^a-zA-Z0-9/+._-]/g, '').slice(0, 80);
+    const environment = new URL(cfg.apiBase).hostname === 'test-payment.momo.vn' ? 'sandbox' : 'production';
+    console.warn('[MoMo gateway]', JSON.stringify({ operation: path, environment, httpStatus: response.status, contentType, reason: 'NON_JSON_RESPONSE' }));
+    throw gatewayError(`MoMo HTTP ${response.status}: phản hồi ${contentType}, không phải JSON. Chưa có dữ liệu thanh toán/QR hợp lệ; giao dịch vẫn chờ đối soát.`);
+  }
   if (!response.ok) {
     const code = integer(data?.resultCode) ? Number(data.resultCode) : null;
     console.warn('[MoMo gateway]', JSON.stringify({ operation: path, httpStatus: response.status, resultCode: code }));

@@ -115,3 +115,17 @@ test('MoMo gateway errors expose safe diagnostic codes without echoing provider 
     assert.equal(logs.join('').includes('sensitive-provider-payload'), false);
   } finally { global.fetch = originalFetch; console.warn = originalWarn; }
 });
+
+test('non-JSON responses retain HTTP diagnostics without exposing HTML or treating them as payment results', async () => {
+  const originalFetch = global.fetch;
+  const originalWarn = console.warn;
+  const logs = [];
+  console.warn = (...parts) => logs.push(parts.join(' '));
+  global.fetch = async () => ({ ok: false, status: 403, headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }), json: async () => { throw new SyntaxError('private HTML body test-secret'); } });
+  try {
+    await assert.rejects(gateway.create(attempt), error => error.status === 502 && error.publicMessage.includes('HTTP 403') && error.publicMessage.includes('text/html') && !error.publicMessage.includes('test-secret'));
+    assert.match(logs.join(''), /NON_JSON_RESPONSE/);
+    assert.match(logs.join(''), /sandbox/);
+    assert.equal(logs.join('').includes('private HTML'), false);
+  } finally { global.fetch = originalFetch; console.warn = originalWarn; }
+});
